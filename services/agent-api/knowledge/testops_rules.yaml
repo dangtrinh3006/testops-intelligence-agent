@@ -1,0 +1,80 @@
+# Expert knowledge layer: how a senior test-platform engineer reads CI evidence.
+# The rules decide; the language model only chooses which evidence to fetch and explains the result.
+# Versioned with the code so every verdict can name the rule (and rule version) that produced it.
+version: "2026.11.0"
+owner: "QA Platform (customer-owned in a pilot)"
+
+# Error class -> failure category. Infra and external failures are never counted against a test.
+taxonomy:
+  INFRA:
+    classes: [SessionProvisioningTimeout, DeviceAllocationFailed, TunnelDisconnected, RunnerOOMKilled, ArtifactUploadFailed, ConcurrencyQuotaExceeded]
+    meaning: "Execution platform failed before or around the test; the product was not exercised reliably."
+  EXTERNAL_DEPENDENCY:
+    classes: [ConnectionResetError, UpstreamTimeout, SandboxUnavailable]
+    meaning: "A third-party or partner sandbox misbehaved; retry-eligible, tracked per dependency."
+  PRODUCT_ASSERTION:
+    classes: [AssertionError]
+    meaning: "The product returned a wrong result. Strongest signal of a real regression."
+  TIMING:
+    classes: [TimeoutError]
+    meaning: "Time-dependent behaviour (TTL, polling, async); classic source of genuine nondeterminism."
+  MODEL_QUALITY:
+    classes: [EvalScoreBelowThreshold]
+    meaning: "LLM evaluation score under threshold; expected variance unless it repeats on the same input."
+  TEST_CODE:
+    classes: [ElementNotInteractable, NoSuchElement, StaleElementReference]
+    meaning: "Locator or test-harness problem; usually fixed in the test, not the product."
+
+rules:
+  - id: R1
+    title: Infra failures are not test flakiness
+    rationale: "Blaming a test for the grid is the most common triage mistake; infra retries are tracked as platform reliability."
+    effect: "Retry-passes whose failed attempt is INFRA or EXTERNAL_DEPENDENCY do not raise the test's flake level."
+  - id: R2
+    title: Final status is the last terminal attempt
+    rationale: "Retries exist to absorb transient failure; an intermediate failure that a retry resolved is a signal, not a blocker."
+    effect: "A run's test outcome = status of its highest-numbered attempt that reported a result."
+  - id: R3
+    title: Three levels of flakiness evidence
+    rationale: "History can suggest nondeterminism but only identical-input reruns prove it."
+    levels:
+      possible: "one fail-then-pass series in the window"
+      suspected: ">= 2 fail-then-pass series in the window, non-infra"
+      proven: "the same commit has both a final PASS and a final FAIL"
+  - id: R4
+    title: Quarantine is a human decision with an expiry
+    rationale: "Tests leave the gate only through an owned, time-boxed quarantine entry; the agent recommends, never writes it."
+  - id: R5
+    title: Source-of-truth precedence
+    rationale: "Raw attempt results outrank the CI summary; a summary contradicted by its attempts is invalid, never the attempts."
+    effect: "If a gating test has no terminal attempt, or the CI summary contradicts final attempts, the gate is unverifiable: HOLD_MANUAL_REVIEW."
+  - id: R6
+    title: Missing data is reported, never imputed
+    rationale: "A duration without an end time, or a run without a summary, is unknown, not zero and not PASS."
+
+release_gate:
+  policy_id: release-policy-v3
+  gating_suites: [critical]
+  # Verdict precedence (first match wins).
+  precedence:
+    - {when: unresolved_failure, verdict: BLOCK, rule: R2}
+    - {when: incomplete_gating_test, verdict: HOLD_MANUAL_REVIEW, rule: R5}
+    - {when: summary_conflict, verdict: HOLD_MANUAL_REVIEW, rule: R5}
+    - {when: missing_ci_summary, verdict: HOLD_MANUAL_REVIEW, rule: R6}
+    - {when: retry_pass_in_gating, verdict: SHIP_WITH_WARNINGS, rule: R2}
+    - {when: otherwise, verdict: SHIP, rule: R2}
+
+quarantine:
+  - test_id: T-SUP-003
+    owner: "CX AI team"
+    reason: "LLM eval variance under investigation (prompt v12)"
+    expires: "2026-11-30"
+  - test_id: T-CHK-011
+    owner: "Storefront team"
+    reason: "3DS iframe slow on shared grid; waiting for dedicated browser pool"
+    expires: "2026-11-01"
+
+# Illustrative effort model. These are ASSUMPTIONS to be replaced by the customer's measured baseline.
+effort_assumptions:
+  triage_minutes_per_investigation: {low: 10, base: 20, high: 35}
+  loaded_cost_per_engineer_hour_usd: {low: 40, base: 60, high: 90}

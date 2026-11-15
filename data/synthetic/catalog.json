@@ -1,0 +1,335 @@
+{
+  "company": {
+    "name": "Kestrel Commerce",
+    "profile": "Fictional mid-sized B2B commerce SaaS: 4 services, 6 CI pipelines, ~120 runs in the 30-day window."
+  },
+  "as_of": "2026-11-13T12:00:00Z",
+  "services": [
+    {
+      "id": "checkout-web",
+      "name": "Checkout Web",
+      "team": "Storefront",
+      "tier": "tier-1"
+    },
+    {
+      "id": "payments-api",
+      "name": "Payments API",
+      "team": "Payments",
+      "tier": "tier-1"
+    },
+    {
+      "id": "inventory-svc",
+      "name": "Inventory Service",
+      "team": "Fulfilment",
+      "tier": "tier-2"
+    },
+    {
+      "id": "support-assistant",
+      "name": "Support Assistant (LLM)",
+      "team": "CX AI",
+      "tier": "tier-2"
+    }
+  ],
+  "pipelines": [
+    {
+      "id": "chk-main",
+      "service_id": "checkout-web",
+      "name": "checkout-web / main",
+      "branch": "main",
+      "kind": "merge"
+    },
+    {
+      "id": "chk-e2e",
+      "service_id": "checkout-web",
+      "name": "checkout-web / nightly-e2e",
+      "branch": "main",
+      "kind": "nightly"
+    },
+    {
+      "id": "pay-main",
+      "service_id": "payments-api",
+      "name": "payments-api / main",
+      "branch": "main",
+      "kind": "merge"
+    },
+    {
+      "id": "inv-main",
+      "service_id": "inventory-svc",
+      "name": "inventory-svc / main",
+      "branch": "main",
+      "kind": "merge"
+    },
+    {
+      "id": "sup-main",
+      "service_id": "support-assistant",
+      "name": "support-assistant / main",
+      "branch": "main",
+      "kind": "merge"
+    },
+    {
+      "id": "sup-eval",
+      "service_id": "support-assistant",
+      "name": "support-assistant / nightly-eval",
+      "branch": "main",
+      "kind": "nightly"
+    }
+  ],
+  "tests": [
+    {
+      "id": "T-CHK-001",
+      "service_id": "checkout-web",
+      "suite": "critical",
+      "kind": "ui",
+      "name": "cart › add item updates badge count"
+    },
+    {
+      "id": "T-CHK-002",
+      "service_id": "checkout-web",
+      "suite": "critical",
+      "kind": "ui",
+      "name": "checkout › guest can reach payment step"
+    },
+    {
+      "id": "T-CHK-003",
+      "service_id": "checkout-web",
+      "suite": "critical",
+      "kind": "ui",
+      "name": "checkout › shipping options load for VN address"
+    },
+    {
+      "id": "T-CHK-004",
+      "service_id": "checkout-web",
+      "suite": "critical",
+      "kind": "ui",
+      "name": "checkout › coupon SAVE10 reduces order total"
+    },
+    {
+      "id": "T-CHK-005",
+      "service_id": "checkout-web",
+      "suite": "regression",
+      "kind": "ui",
+      "name": "cart › remove last item shows empty state"
+    },
+    {
+      "id": "T-CHK-006",
+      "service_id": "checkout-web",
+      "suite": "regression",
+      "kind": "ui",
+      "name": "account › saved addresses render"
+    },
+    {
+      "id": "T-CHK-007",
+      "service_id": "checkout-web",
+      "suite": "regression",
+      "kind": "ui",
+      "name": "search › typo-tolerant product search"
+    },
+    {
+      "id": "T-CHK-008",
+      "service_id": "checkout-web",
+      "suite": "regression",
+      "kind": "api",
+      "name": "pricing › tax line for B2B invoice"
+    },
+    {
+      "id": "T-CHK-009",
+      "service_id": "checkout-web",
+      "suite": "regression",
+      "kind": "ui",
+      "name": "i18n › vi-VN currency formatting"
+    },
+    {
+      "id": "T-CHK-010",
+      "service_id": "checkout-web",
+      "suite": "critical",
+      "kind": "ui",
+      "name": "checkout › order confirmation email queued"
+    },
+    {
+      "id": "T-CHK-011",
+      "service_id": "checkout-web",
+      "suite": "critical",
+      "kind": "ui",
+      "name": "checkout › 3DS challenge iframe loads"
+    },
+    {
+      "id": "T-PAY-001",
+      "service_id": "payments-api",
+      "suite": "critical",
+      "kind": "api",
+      "name": "charge › card authorisation succeeds"
+    },
+    {
+      "id": "T-PAY-002",
+      "service_id": "payments-api",
+      "suite": "critical",
+      "kind": "api",
+      "name": "charge › declined card returns 402"
+    },
+    {
+      "id": "T-PAY-003",
+      "service_id": "payments-api",
+      "suite": "critical",
+      "kind": "api",
+      "name": "refund › full refund settles"
+    },
+    {
+      "id": "T-PAY-004",
+      "service_id": "payments-api",
+      "suite": "critical",
+      "kind": "api",
+      "name": "refund › idempotency key reuse returns original refund"
+    },
+    {
+      "id": "T-PAY-005",
+      "service_id": "payments-api",
+      "suite": "regression",
+      "kind": "api",
+      "name": "webhook › signature verification rejects tampering"
+    },
+    {
+      "id": "T-PAY-006",
+      "service_id": "payments-api",
+      "suite": "regression",
+      "kind": "api",
+      "name": "sandbox › partner gateway health probe"
+    },
+    {
+      "id": "T-PAY-007",
+      "service_id": "payments-api",
+      "suite": "regression",
+      "kind": "unit",
+      "name": "money › banker's rounding for VND"
+    },
+    {
+      "id": "T-PAY-008",
+      "service_id": "payments-api",
+      "suite": "critical",
+      "kind": "api",
+      "name": "charge › currency mismatch rejected"
+    },
+    {
+      "id": "T-INV-001",
+      "service_id": "inventory-svc",
+      "suite": "critical",
+      "kind": "api",
+      "name": "stock › reserve decrements available"
+    },
+    {
+      "id": "T-INV-002",
+      "service_id": "inventory-svc",
+      "suite": "critical",
+      "kind": "api",
+      "name": "stock › oversell prevented under concurrency"
+    },
+    {
+      "id": "T-INV-003",
+      "service_id": "inventory-svc",
+      "suite": "regression",
+      "kind": "api",
+      "name": "sync › warehouse feed parses CSV"
+    },
+    {
+      "id": "T-INV-004",
+      "service_id": "inventory-svc",
+      "suite": "regression",
+      "kind": "unit",
+      "name": "sku › normalises legacy SKU format"
+    },
+    {
+      "id": "T-INV-005",
+      "service_id": "inventory-svc",
+      "suite": "critical",
+      "kind": "api",
+      "name": "reservation › released after TTL expiry"
+    },
+    {
+      "id": "T-INV-006",
+      "service_id": "inventory-svc",
+      "suite": "regression",
+      "kind": "api",
+      "name": "reports › low-stock alert threshold"
+    },
+    {
+      "id": "T-SUP-001",
+      "service_id": "support-assistant",
+      "suite": "critical",
+      "kind": "api",
+      "name": "chat api › returns 200 with session id"
+    },
+    {
+      "id": "T-SUP-002",
+      "service_id": "support-assistant",
+      "suite": "regression",
+      "kind": "unit",
+      "name": "retrieval › top-k returns policy docs"
+    },
+    {
+      "id": "T-SUP-003",
+      "service_id": "support-assistant",
+      "suite": "eval",
+      "kind": "llm-eval",
+      "name": "eval › refund-policy answer is grounded with citation"
+    },
+    {
+      "id": "T-SUP-004",
+      "service_id": "support-assistant",
+      "suite": "eval",
+      "kind": "llm-eval",
+      "name": "eval › refuses to reveal other customers' orders"
+    },
+    {
+      "id": "T-SUP-005",
+      "service_id": "support-assistant",
+      "suite": "eval",
+      "kind": "llm-eval",
+      "name": "eval › escalates angry customer to human"
+    },
+    {
+      "id": "T-SUP-006",
+      "service_id": "support-assistant",
+      "suite": "regression",
+      "kind": "api",
+      "name": "guardrail › PII redaction in transcript"
+    }
+  ],
+  "release_policy": {
+    "id": "release-policy-v3",
+    "name": "Tier-1 release gate v3",
+    "rules": {
+      "gating_suites": [
+        "critical"
+      ],
+      "unresolved_failure": "BLOCK",
+      "source_conflict": "HOLD_MANUAL_REVIEW",
+      "incomplete_evidence": "HOLD_MANUAL_REVIEW",
+      "retry_pass_warn_threshold": 1,
+      "missing_ci_summary": "HOLD_MANUAL_REVIEW"
+    },
+    "source_of_truth": [
+      "test-runner attempt results (final attempt per test)",
+      "CI summary webhook (advisory only)",
+      "artifact logs (context only, never decisive)"
+    ]
+  },
+  "release_candidates": [
+    {
+      "id": "rc-chk-5.8.0",
+      "service_id": "checkout-web",
+      "version": "5.8.0",
+      "run_id": "run-chk-main-0418"
+    },
+    {
+      "id": "rc-pay-2.13.4",
+      "service_id": "payments-api",
+      "version": "2.13.4",
+      "run_id": "run-pay-main-0232"
+    },
+    {
+      "id": "rc-pay-2.14.0",
+      "service_id": "payments-api",
+      "version": "2.14.0",
+      "run_id": "run-pay-main-0233"
+    }
+  ]
+}

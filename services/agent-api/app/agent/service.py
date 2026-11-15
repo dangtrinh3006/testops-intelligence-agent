@@ -87,7 +87,8 @@ def _gate_view(gates: dict[str, dict], prefer: str | None = None) -> GateView | 
     g = gates.get(prefer) if prefer else None
     g = g or list(gates.values())[-1]
     return GateView(run_id=g["run_id"], verdict=g["verdict"], deciding_rule=g["deciding_rule"], policy_id=g["policy_id"],
-                    rules_version=g["rules_version"], checks=g["checks"])
+                    rules_version=g["rules_version"], checks=g["checks"], summary_status=g.get("summary_status"),
+                    summary_event_id=g.get("summary_event_id"))
 
 
 def _response(rid: str, mode: str, model: str | None, question: str, draft: dict, trace: list[dict], results: list[dict],
@@ -166,11 +167,15 @@ def offline(ds: Dataset, question: str) -> tuple[dict, list[dict], list[dict], d
         draft = {"answer": answer, "recommended_next_action": "Confirm the 'suspected' tests with controlled reruns; route infra_only retries to the platform team.",
                  "claims": claims, "assumptions": [], "uncertainty": "Only 'proven' tests have same-commit evidence; others are signals from history."}
     else:
-        explicit = next((r.run_id for r in ds.runs.values() if run_no and r.run_number == int(run_no.group(1)) and (sid is None or r.service_id == sid)), None)
+        named_ids = [x for x in re.findall(r"\b(run-[a-z]+-[a-z]+-\d{4}|rc-[a-z]+-\d+\.\d+\.\d+)\b", q) if x in ds.runs or any(r["id"] == x for r in ds.catalog["release_candidates"])]
+        explicit = named_ids[0] if named_ids else next((r.run_id for r in ds.runs.values() if run_no and r.run_number == int(run_no.group(1)) and (sid is None or r.service_id == sid)), None)
+        by_version = next((r["id"] for r in ds.catalog["release_candidates"] if rc and r["version"] == rc.group(1) and (sid is None or r["service_id"] == sid)), None)
         if explicit:
             target = explicit
-        elif rc or "summary" in q or "ship" in q and "payment" in q:
-            target = next((r["id"] for r in ds.catalog["release_candidates"] if rc and r["version"] == rc.group(1)), None) or "rc-pay-2.14.0"
+        elif by_version:
+            target = by_version
+        elif sid is None and "summary" in q:
+            target = next(r["id"] for r in reversed(ds.catalog["release_candidates"]))
         else:
             runs = call("find_pipeline_runs", {"service_id": sid or "checkout-web", "limit": 3})
             target = runs["runs"][0]["run_id"] if runs.get("runs") else "run-chk-main-0418"
@@ -195,7 +200,10 @@ def ask(ds: Dataset, question: str, mode: str = "live", scenario: str | None = N
     if mode == "replay":
         path = REPLAY_DIR / f"scenario-{(scenario or '').upper()}.json"
         if not path.exists():
-            mode = "offline"
+            draft, trace, results, gates = offline(ds, question)
+            v = validate(draft["answer"] + " " + draft["recommended_next_action"], draft["claims"], results, ds, {k: g["verdict"] for k, g in gates.items()})
+            return _response(rid, "offline", None, question, draft, trace, results, gates, v, 0, t0, ds,
+                             "No replay is recorded for this question; answered by the offline deterministic planner.")
         else:
             rec = json.loads(path.read_text(encoding="utf-8"))
             resp = AskResponse.model_validate(rec)

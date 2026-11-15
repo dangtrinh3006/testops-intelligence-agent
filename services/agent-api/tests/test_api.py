@@ -40,3 +40,16 @@ def test_read_only_surface():
     writes = [p for p, m in paths.items() if m and m & {"PUT", "PATCH", "DELETE"}]
     posts = [p for p, m in paths.items() if m and "POST" in m]
     assert writes == [] and posts == ["/api/ask"]
+
+
+def test_raw_event_and_pipeline_ids_resolve():
+    r = client.get("/api/records/runner:attempt.result:att-chk-main-0403-T-CHK-011-1").json()
+    assert r["kind"] == "attempt" and r["record"]["attempt_id"] == "att-chk-main-0403-T-CHK-011-1"
+    p = client.get("/api/records/pay-main").json()
+    assert p["kind"] == "pipeline" and p["record"]["summary_vocabulary"] == ["passed"]
+    assert client.get("/api/records/run-pay-main-0233").json()["kind"] == "run"
+
+
+def test_replay_without_recording_says_so():
+    body = client.post("/api/ask", json={"question": "Which tests are flaky in inventory?", "mode": "replay"}).json()
+    assert body["mode"] == "offline" and "No replay is recorded" in body["notice"]

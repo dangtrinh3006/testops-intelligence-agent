@@ -33,7 +33,7 @@ rules:
   - id: R2
     title: Final status is the last terminal attempt
     rationale: "Retries exist to absorb transient failure; an intermediate failure that a retry resolved is a signal, not a blocker."
-    effect: "A run's test outcome = status of its highest-numbered attempt that reported a result."
+    effect: "A run's test outcome = status of its last attempt. If that attempt never reported a result, the outcome is INCOMPLETE (unknown), not the earlier attempt's status; see R5."
   - id: R3
     title: Three levels of flakiness evidence
     rationale: "History can suggest nondeterminism but only identical-input reruns prove it."
@@ -41,13 +41,15 @@ rules:
       possible: "one fail-then-pass series in the window"
       suspected: ">= 2 fail-then-pass series in the window, non-infra"
       proven: "the same commit has both a final PASS and a final FAIL"
+      consistent_failure: "fails on its final attempt with no retry-pass in the window: a regression candidate, not flakiness"
+      infra_only: "only INFRA / EXTERNAL_DEPENDENCY retry-passes: a platform signal, not test flakiness (R1)"
   - id: R4
     title: Quarantine is a human decision with an expiry
     rationale: "Tests leave the gate only through an owned, time-boxed quarantine entry; the agent recommends, never writes it."
   - id: R5
     title: Source-of-truth precedence
     rationale: "Raw attempt results outrank the CI summary; a summary contradicted by its attempts is invalid, never the attempts."
-    effect: "If a gating test has no terminal attempt, or the CI summary contradicts final attempts, the gate is unverifiable: HOLD_MANUAL_REVIEW."
+    effect: "If a gating test has no terminal attempt, or the CI summary contradicts the final attempts of gating tests, the gate is unverifiable: HOLD_MANUAL_REVIEW. Non-gating suites never change a verdict."
   - id: R6
     title: Missing data is reported, never imputed
     rationale: "A duration without an end time, or a run without a summary, is unknown, not zero and not PASS."

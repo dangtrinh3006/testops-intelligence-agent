@@ -164,6 +164,8 @@ class Dataset:
             or any(t["id"] == rid for t in self.catalog["tests"])
             or rid == self.catalog["release_policy"]["id"]
             or any(rc["id"] == rid for rc in self.catalog["release_candidates"])
+            or any(p["id"] == rid for p in self.catalog["pipelines"])
+            or (rid.startswith(("runner:attempt.result:", "runner:attempt.started:")) and any(a.attempt_id == rid.split(":", 2)[2] for a in self.attempts))
         )
 
 

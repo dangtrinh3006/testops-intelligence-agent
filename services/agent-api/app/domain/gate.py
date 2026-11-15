@@ -64,8 +64,8 @@ def evaluate(ds: Dataset, run_id: str) -> GateResult:
     incomplete = [o for o in gating if o.final_status == "INCOMPLETE"]
     retried = [o for o in gating if o.resolution == "passed_on_retry"]
     summary = run.summary
-    # The CI summary claims to cover every non-allow-failure suite; compare against that same scope.
-    covered = [o for o in outcomes if o.suite not in ALLOW_FAILURE_SUITES]
+    # Compare the advisory summary only where it can change the verdict: the gating tests.
+    covered = gating
     covered_ok = all(o.final_status == "PASS" for o in covered)
     conflict_detail, conflict_evidence = "", []
     if summary and summary.status == "PASS" and not covered_ok:

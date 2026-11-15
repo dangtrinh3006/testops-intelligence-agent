@@ -70,6 +70,7 @@ class State(TypedDict, total=False):
     draft: dict
     validation: dict
     revisions: int
+    failures: int
     feedback: str
     usage: dict
 
@@ -180,14 +181,16 @@ def build_graph(cfg: ModelConfig, ds: Dataset, model: str):
         verdicts = {k: v["verdict"] for k, v in state.get("gates", {}).items()}
         v = validate(d["answer"] + " " + d["recommended_next_action"], d["claims"], state.get("results", []), ds, verdicts)
         feedback = "\n".join(f"- {c['name']}: {c['detail']}" for c in v["checks"] if not c["passed"])
-        return {"validation": v, "feedback": feedback, "revisions": state.get("revisions", 0) + (0 if v["passed"] else 1)}
+        failures = state.get("failures", 0) + (0 if v["passed"] else 1)
+        # One revision at most: a second failure ends the loop and the answer ships with its flags visible.
+        return {"validation": v, "feedback": feedback, "failures": failures, "revisions": failures if v["passed"] else failures - 1}
 
     def after_agent(state: State) -> str:
         last = state["messages"][-1]
         return "tools" if last.get("tool_calls") and len(state.get("trace", [])) < MAX_TOOL_CALLS else "compose"
 
     def after_check(state: State) -> str:
-        return "compose" if not state["validation"]["passed"] and state["revisions"] <= 1 else END
+        return "compose" if not state["validation"]["passed"] and state["failures"] <= 1 else END
 
     g = StateGraph(State)
     g.add_node("agent", agent)

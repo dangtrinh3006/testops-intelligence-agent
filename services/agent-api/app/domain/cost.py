@@ -20,7 +20,7 @@ def estimate(investigations: int, window_days: int, minutes: dict | None = None,
         }
     return {
         "formula": "engineer_hours = investigations x minutes_per_investigation / 60;  cost = engineer_hours x loaded_hourly_rate",
-        "measured": {"investigations": investigations, "window_days": window_days, "source": "retry-pass + final-failure series in the window"},
+        "measured": {"investigations": investigations, "window_days": window_days, "source": "triage investigations in the window: test retry-passes + infra retry-passes + final failures"},
         "assumed": {"minutes_per_investigation": minutes, "loaded_cost_per_engineer_hour_usd": rate},
         "scenarios": scenarios,
         "caveat": "Minutes and rates are illustrative assumptions, not measured company data. A pilot replaces them with a measured baseline.",

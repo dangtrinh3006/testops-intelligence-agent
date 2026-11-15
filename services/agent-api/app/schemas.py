@@ -37,6 +37,8 @@ class GateView(BaseModel):
     policy_id: str
     rules_version: str
     checks: list[dict[str, Any]]
+    summary_status: str | None = None
+    summary_event_id: str | None = None
 
 
 class ToolCall(BaseModel):

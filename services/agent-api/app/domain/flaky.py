@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from app.etl import Dataset
 
 from .evidence import run_outcomes
-from .knowledge import NON_TEST_CATEGORIES
+from .knowledge import NON_TEST_CATEGORIES, category
 
 LEVEL_ORDER = {"proven": 0, "suspected": 1, "possible": 2, "consistent_failure": 3, "infra_only": 4}
 
@@ -44,7 +44,7 @@ def analyze(ds: Dataset, service_id: str | None = None, lookback_days: int = 30)
     runs = [r for r in ds.runs.values() if (service_id is None or r.service_id == service_id) and r.queued.utc and r.queued.utc >= since]
 
     per_test: dict[str, dict] = defaultdict(lambda: {
-        "runs": 0, "first_fail": 0, "rp_test": 0, "rp_infra": 0, "final_fail": 0, "incomplete": 0,
+        "runs": 0, "first_fail": 0, "rp_test": 0, "rp_infra": 0, "rp_infra_final": 0, "final_fail": 0, "incomplete": 0,
         "commits": defaultdict(set), "classes": set(), "retry_s": 0.0, "retry_missing": 0, "evidence": [],
     })
     for run in sorted(runs, key=lambda r: r.run_id):
@@ -73,7 +73,11 @@ def analyze(ds: Dataset, service_id: str | None = None, lookback_days: int = 30)
                     t["rp_test"] += 1
                 t["evidence"].append(o.attempts[0].attempt_id)
             elif o.final_status == "FAIL":
-                t["final_fail"] += 1
+                last_cat = category(o.attempts[-1].error_class)
+                if last_cat in NON_TEST_CATEGORIES:
+                    t["rp_infra_final"] += 1  # platform failed on the final attempt: not a product or test failure (R1)
+                else:
+                    t["final_fail"] += 1
                 t["evidence"].append(o.final_attempt_id)
 
     results: list[TestFlakiness] = []
@@ -85,9 +89,9 @@ def analyze(ds: Dataset, service_id: str | None = None, lookback_days: int = 30)
             level = "suspected"
         elif t["rp_test"] == 1:
             level = "possible"
-        elif t["final_fail"] and not t["rp_infra"]:
+        elif t["final_fail"]:
             level = "consistent_failure"
-        elif t["rp_infra"]:
+        elif t["rp_infra"] or t["rp_infra_final"]:
             level = "infra_only"
         else:
             continue

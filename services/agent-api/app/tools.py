@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import asdict
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
@@ -19,6 +20,7 @@ from .domain.knowledge import category, knowledge
 from .etl import Dataset, attempt_dict
 
 MAX_RUNS = 20
+_EPOCH = datetime.min.replace(tzinfo=UTC)
 INJECTION_PATTERN = re.compile(r"ignore (all )?(previous|prior) instructions|approve (the )?release|ai-assistant note|system prompt", re.IGNORECASE)
 
 
@@ -61,6 +63,11 @@ class RecordArgs(BaseModel):
 
 
 # ---------- helpers ----------
+def _newest_first(run) -> tuple[bool, datetime]:
+    """Sort key: runs without a parseable queue time sort as oldest instead of crashing the sort."""
+    return (run.queued.utc is not None, run.queued.utc or _EPOCH)
+
+
 def _resolve_run(ds: Dataset, rid: str) -> str:
     rid = rid.strip()
     rc = next((r for r in ds.catalog["release_candidates"] if r["id"] == rid or f"{r['service_id']} {r['version']}" == rid), None)
@@ -109,7 +116,7 @@ def find_pipeline_runs(ds: Dataset, a: FindRunsArgs) -> dict:
     runs = [r for r in ds.runs.values() if (sid is None or r.service_id == sid) and (a.pipeline_id is None or r.pipeline_id == a.pipeline_id)]
     if a.final_status:
         runs = [r for r in runs if r.summary and r.summary.status == a.final_status.upper()]
-    runs.sort(key=lambda r: r.queued.utc, reverse=True)
+    runs.sort(key=_newest_first, reverse=True)
     rows = []
     for r in runs[: a.limit]:
         g = gate.evaluate(ds, r.run_id)
@@ -160,8 +167,8 @@ def inspect_failure_evidence(ds: Dataset, a: RunArgs) -> dict:
         if o.resolution == "passed_first":
             continue
         history = []
-        for other in sorted(ds.runs.values(), key=lambda r: r.queued.utc, reverse=True):
-            if other.pipeline_id != run.pipeline_id or other.run_id == rid or other.queued.utc > run.queued.utc:
+        for other in sorted(ds.runs.values(), key=_newest_first, reverse=True):
+            if other.pipeline_id != run.pipeline_id or other.run_id == rid or _newest_first(other) > _newest_first(run):
                 continue
             prev = [x for x in run_outcomes(ds, other) if x.test_id == o.test_id]
             if prev:
@@ -223,6 +230,10 @@ def estimate_triage_cost(ds: Dataset, a: CostArgs) -> dict:
     est = cost.estimate(investigations, a.lookback_days, minutes, rate)
     est["measured"]["retry_ci_minutes"] = r["totals"]["retry_minutes_measured"]
     est["measured"]["breakdown"] = {t.test_id: t.retry_passes_test + t.retry_passes_infra + t.final_failures for t in r["tests"]}
+    est["measured"]["split"] = {"test_retry_passes": sum(t.retry_passes_test for t in r["tests"]),
+                                "infra_retry_passes": sum(t.retry_passes_infra for t in r["tests"]),
+                                "final_failures": sum(t.final_failures for t in r["tests"])}
+    est["measured"]["what_counts"] = "Every failure an engineer would look at: test retry-passes (flaky signals), infra retry-passes (platform), final failures (regressions)."
     return {**est, "evidence": [t.test_id for t in r["tests"]],
             "summary": f"{investigations} investigations in {a.lookback_days} days; base {est['scenarios']['base']['engineer_hours']} engineer-hours (illustrative)"}
 
@@ -237,7 +248,18 @@ def get_data_quality_report(ds: Dataset, a: QualityArgs) -> dict:
 def get_record(ds: Dataset, a: RecordArgs) -> dict:
     rid = a.record_id
     if rid in ds.runs:
-        return get_run_details(ds, RunArgs(run_id=rid))
+        return {"kind": "run", **get_run_details(ds, RunArgs(run_id=rid))}
+    if rid.startswith(("runner:attempt.result:", "runner:attempt.started:")):
+        # Raw source event id -> the normalised attempt it produced (findings cite the raw id).
+        att_id = rid.split(":", 2)[2]
+        att = next((x for x in ds.attempts if x.attempt_id == att_id), None)
+        if att:
+            return {"kind": "attempt", "record": attempt_dict(att), "source_event_id": rid, "evidence": [rid, att_id], "summary": f"attempt {att_id}"}
+    pipe = ds.pipeline(rid)
+    if pipe:
+        runs = sorted((r for r in ds.runs.values() if r.pipeline_id == rid), key=_newest_first, reverse=True)
+        return {"kind": "pipeline", "record": {**pipe, "runs": len(runs), "latest_run": runs[0].run_id if runs else None,
+                "summary_vocabulary": sorted({str(r.summary.status_raw) for r in runs if r.summary})}, "evidence": [rid], "summary": pipe["name"]}
     att = next((x for x in ds.attempts if x.attempt_id == rid), None)
     if att:
         return {"kind": "attempt", "record": attempt_dict(att), "evidence": [rid], "summary": f"attempt {rid}"}
@@ -251,7 +273,7 @@ def get_record(ds: Dataset, a: RecordArgs) -> dict:
     line = next((x for x in ds.logs if x.event_id == rid), None)
     if line:
         return {"kind": "log", "record": {"event_id": line.event_id, "run_id": line.run_id, "attempt_id": line.attempt_id, "ts_raw": line.ts.raw,
-                "ts_utc": line.ts.iso(), "level": line.level, "untrusted_text": line.message,
+                "ts_utc": line.ts.iso(), "ts_format": line.ts.fmt, "level": line.level, "untrusted_text": line.message,
                 "possible_prompt_injection": bool(INJECTION_PATTERN.search(line.message))}, "evidence": [rid], "summary": "log line"}
     f = next((x for x in ds.findings if x.id == rid), None)
     if f:

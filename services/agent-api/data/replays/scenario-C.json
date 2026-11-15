@@ -1,9 +1,9 @@
 {
-  "request_id": "req_3fd5cf36d63c",
+  "request_id": "req_cf13f177abe0",
   "mode": "live",
   "model": "gemini-3.5-flash-lite",
   "question": "The CI summary for payments-api 2.14.0 says PASS, but the raw execution data contains failures. Can we ship?",
-  "answer": "No, we cannot ship right now. Although the CI summary (`ci:run.summary:run-pay-main-0233`) reports `PASS`, raw execution data shows test `T-PAY-004` failed on attempt 1 (`att-pay-main-0233-T-PAY-004-1`) with a product assertion error, and its second attempt (`att-pay-main-0233-T-PAY-004-2`) resulted in an incomplete status with no final result reported (`DQ-INC-005`). \n\nEvaluating the release gate (`run-pay-main-0233`) yields a verdict of **HOLD_MANUAL_REVIEW** under rule R5 due to the incomplete gating test and summary conflict.\n\n- **Attempt 1 Failure:** `att-pay-main-0233-T-PAY-004-1` failed due to idempotency key reuse mismatch.\n- **Incomplete Test:** `att-pay-main-0233-T-PAY-004-2` never finished.\n- **Gate Verdict:** `HOLD_MANUAL_REVIEW` (Rule R5).",
+  "answer": "No, we cannot ship right now. Although the CI summary (`ci:run.summary:run-pay-main-0233`) reports `PASS`, the raw execution data reveals an incomplete test result (`DQ-INC-005`). \n\n- **Test Failure & Incompletion**: Test `T-PAY-004` failed on attempt 1 (`att-pay-main-0233-T-PAY-004-1`) with a product assertion error regarding idempotency key reuse. Attempt 2 (`att-pay-main-0233-T-PAY-004-2`) started but never reported a result.\n- **Release Gate Verdict**: Evaluating the release gate for `rc-pay-2.14.0` (`run-pay-main-0233`) returns **HOLD_MANUAL_REVIEW** under deciding rule **R5** due to the summary conflict and incomplete gating test.\n\nManual review of test `T-PAY-004` is required before any release decision can be made.",
   "recommendation": "HOLD_MANUAL_REVIEW: Hold the release. A release manager should rerun or inspect the unresolved test, then re-evaluate the gate.",
   "gate": {
     "run_id": "run-pay-main-0233",
@@ -56,11 +56,13 @@
         "detail": "No retries were needed.",
         "evidence": []
       }
-    ]
+    ],
+    "summary_status": "PASS",
+    "summary_event_id": "ci:run.summary:run-pay-main-0233"
   },
   "claims": [
     {
-      "text": "CI summary reports PASS for run-pay-main-0233.",
+      "text": "CI summary reports PASS.",
       "evidence": [
         "ci:run.summary:run-pay-main-0233"
       ],
@@ -68,16 +70,9 @@
       "note": null
     },
     {
-      "text": "Test T-PAY-004 attempt 1 failed with a product assertion error.",
+      "text": "T-PAY-004 failed on attempt 1 and attempt 2 never finished.",
       "evidence": [
-        "att-pay-main-0233-T-PAY-004-1"
-      ],
-      "supported": true,
-      "note": null
-    },
-    {
-      "text": "Test T-PAY-004 attempt 2 is incomplete with no terminal result.",
-      "evidence": [
+        "att-pay-main-0233-T-PAY-004-1",
         "att-pay-main-0233-T-PAY-004-2",
         "DQ-INC-005"
       ],
@@ -85,7 +80,7 @@
       "note": null
     },
     {
-      "text": "Release gate evaluation returned HOLD_MANUAL_REVIEW under rule R5.",
+      "text": "Release gate verdict is HOLD_MANUAL_REVIEW under rule R5.",
       "evidence": [
         "run-pay-main-0233"
       ],
@@ -129,10 +124,10 @@
     "DQ-INC-005 INCOMPLETE_ATTEMPT: att-pay-main-0233-T-PAY-004-2 started at 2026-11-13T09:51:06Z but never reported a result; final status unknown."
   ],
   "assumptions": [
-    "All timestamps are UTC.",
-    "Release policy v3 is authoritative."
+    "Timezone is UTC as reported in timestamps.",
+    "Cost figures not applicable."
   ],
-  "uncertainty": "It is unknown whether the idempotency key failure in T-PAY-004 is a bug in payments-api 2.14.0 or a test environment artifact, as the second attempt never completed.",
+  "uncertainty": "Whether the product assertion failure on attempt 1 represents a genuine regression or environment artifact is unknown due to the incomplete second attempt.",
   "tool_trace": [
     {
       "step": 1,
@@ -141,7 +136,7 @@
         "run_id": "rc-pay-2.14.0"
       },
       "ok": true,
-      "ms": 1,
+      "ms": 0,
       "summary": "run-pay-main-0233: 8 tests, 1 need attention, CI summary PASS",
       "evidence": [
         "run-pay-main-0233",
@@ -159,7 +154,7 @@
         "run_id": "rc-pay-2.14.0"
       },
       "ok": true,
-      "ms": 1,
+      "ms": 0,
       "summary": "run-pay-main-0233: HOLD_MANUAL_REVIEW (rule R5, release-policy-v3)",
       "evidence": [
         "run-pay-main-0233",
@@ -201,6 +196,6 @@
     ],
     "revisions": 0
   },
-  "latency_ms": 17652,
+  "latency_ms": 8344,
   "notice": null
 }

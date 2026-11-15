@@ -242,9 +242,14 @@ function CostModel({ cost }: { cost: FlakyResponse["cost"] }) {
         <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-sunken px-3 py-2 font-mono text-xs text-ink">{cost.formula.replace(/;\s*/g, ";\n")}</pre>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="rounded-lg border border-line p-3">
-            <div className="text-[11px] uppercase tracking-wider text-faint">Measured investigations</div>
+            <div className="text-[11px] uppercase tracking-wider text-faint">Triage investigations (measured)</div>
             <div className="tabular text-xl font-semibold text-ink">{n}</div>
-            <div className="text-[11px] text-muted">{cost.measured.window_days} days · {cost.measured.source}</div>
+            {cost.measured.split && (
+              <div className="tabular text-[11px] text-ink">
+                {cost.measured.split.test_retry_passes} test retries · {cost.measured.split.infra_retry_passes} infra retries · {cost.measured.split.final_failures} final failures
+              </div>
+            )}
+            <div className="text-[11px] text-muted">{cost.measured.window_days} days · not only flaky tests: every failure an engineer looks at</div>
           </div>
           {cost.measured.retry_ci_minutes != null && (
             <div className="rounded-lg border border-line p-3">

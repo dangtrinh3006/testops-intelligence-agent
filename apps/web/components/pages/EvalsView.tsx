@@ -133,6 +133,13 @@ function Report({ run }: { run: EvalRun }) {
           </div>
           <div className="tabular text-xs text-muted">
             {passed}/{total} cases
+            {run.summary?.run_pass_rate != null && (run.repeat ?? 1) > 1 && (
+              <>
+                {" · "}
+                {Math.round(run.summary.run_pass_rate * 1000) / 10}% of {total * (run.repeat ?? 1)} runs · {run.summary.stable ?? 0} stable,{" "}
+                {run.summary.flaky ?? 0} flaky, {run.summary.failing ?? 0} failing
+              </>
+            )}
           </div>
         </div>
         <div className="rounded-xl border border-line bg-surface p-4">
@@ -218,6 +225,11 @@ function CaseRow({ c, idx }: { c: EvalCase; idx: number }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs font-semibold text-ink">{c.id ?? `case ${idx + 1}`}</span>
             {servedMode && <ModeBadge mode={servedMode} />}
+            {c.runs != null && c.runs > 1 && (
+              <Pill tone={c.stability === "stable" ? "green" : c.stability === "flaky" ? "amber" : "red"}>
+                {c.runs_passed}/{c.runs} runs · {c.stability}
+              </Pill>
+            )}
             {failed > 0 && <Pill tone="red">{failed} check{failed === 1 ? "" : "s"} failed</Pill>}
           </div>
           {c.intent && <p className="mt-0.5 text-sm text-ink">{c.intent}</p>}

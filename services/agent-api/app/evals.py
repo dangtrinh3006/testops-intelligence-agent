@@ -94,41 +94,65 @@ def _check(case: Case, resp) -> list[dict]:
     return checks
 
 
-def run(mode: str = "offline", only: list[str] | None = None, pause_s: float = 0.0, record_replays: bool = False) -> dict:
+def _one(ds, case: Case, mode: str) -> tuple[dict, object]:
+    t0 = time.perf_counter()
+    resp = ask(ds, case.question, mode)
+    checks = _check(case, resp)
+    failed_validation = [c for c in resp.validation.checks if not c["passed"]]
+    return {
+        "passed": all(c["passed"] for c in checks), "checks": checks,
+        "actual": {"mode": resp.mode, "model": resp.model, "verdict": resp.gate.verdict if resp.gate else None,
+                   "tools": [t.tool for t in resp.tool_trace], "latency_ms": resp.latency_ms, "revisions": resp.validation.revisions,
+                   "notice": resp.notice, "answer": (resp.answer + "\n\nNext action: " + (resp.recommendation or ""))[:3000],
+                   "validator_failures": failed_validation},
+        "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+    }, resp
+
+
+def run(mode: str = "offline", only: list[str] | None = None, pause_s: float = 0.0, record_replays: bool = False, repeat: int = 1) -> dict:
+    """Runs every case `repeat` times. An agent case is judged like a test: stable, flaky or failing."""
     ds, source = dataset()
     results, models, lat = [], set(), []
-    for i, case in enumerate(c for c in CASES if not only or c.id in only):
-        if i and pause_s:
-            time.sleep(pause_s)  # free-tier rate limits
-        t0 = time.perf_counter()
-        resp = ask(ds, case.question, mode)
-        checks = _check(case, resp)
-        passed = all(c["passed"] for c in checks)
-        if resp.model:
-            models.add(resp.model)
-        lat.append(resp.latency_ms)
+    first = True
+    for case in (c for c in CASES if not only or c.id in only):
+        runs = []
+        for _ in range(repeat):
+            if not first and pause_s:
+                time.sleep(pause_s)  # free-tier rate limits
+            first = False
+            r, resp = _one(ds, case, mode)
+            runs.append(r)
+            if resp.model:
+                models.add(resp.model)
+            lat.append(resp.latency_ms)
+            if record_replays and case.scenario and resp.mode == "live" and r["passed"]:
+                REPLAY_DIR.mkdir(parents=True, exist_ok=True)
+                (REPLAY_DIR / f"scenario-{case.scenario}.json").write_text(resp.model_dump_json(indent=2), encoding="utf-8")
+        n_pass = sum(r["passed"] for r in runs)
+        stability = "stable" if n_pass == len(runs) else "failing" if n_pass == 0 else "flaky"
+        shown = next((r for r in runs if not r["passed"]), runs[-1])  # show a failure when there is one
         results.append({"id": case.id, "suite": case.suite, "intent": case.intent, "question": case.question,
                         "expected": {"verdict": case.verdict, "must_cite_any": case.must_cite_any},
-                        "actual": {"mode": resp.mode, "model": resp.model, "verdict": resp.gate.verdict if resp.gate else None,
-                                   "tools": [t.tool for t in resp.tool_trace], "latency_ms": resp.latency_ms,
-                                   "revisions": resp.validation.revisions, "notice": resp.notice, "answer": resp.answer[:600]},
-                        "passed": passed, "checks": checks, "elapsed_ms": int((time.perf_counter() - t0) * 1000)})
-        if record_replays and case.scenario and resp.mode == "live" and passed:
-            REPLAY_DIR.mkdir(parents=True, exist_ok=True)
-            (REPLAY_DIR / f"scenario-{case.scenario}.json").write_text(resp.model_dump_json(indent=2), encoding="utf-8")
+                        "passed": n_pass == len(runs), "runs": len(runs), "runs_passed": n_pass, "stability": stability,
+                        "actual": shown["actual"], "checks": shown["checks"], "elapsed_ms": shown["elapsed_ms"]})
     suites = {}
     for r in results:
         s = suites.setdefault(r["suite"], {"name": r["suite"], "passed": 0, "total": 0, "cases": []})
         s["cases"].append(r)
         s["total"] += 1
         s["passed"] += int(r["passed"])
+    total_runs = sum(r["runs"] for r in results)
     report = {
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
-        "mode": mode, "data_source": source, "models": sorted(models),
+        "mode": mode, "data_source": source, "models": sorted(models), "repeat": repeat,
         "summary": {"passed": sum(r["passed"] for r in results), "total": len(results),
+                    "run_pass_rate": round(sum(r["runs_passed"] for r in results) / total_runs, 3) if total_runs else None,
+                    "stable": sum(r["stability"] == "stable" for r in results), "flaky": sum(r["stability"] == "flaky" for r in results),
+                    "failing": sum(r["stability"] == "failing" for r in results),
                     "median_latency_ms": sorted(lat)[len(lat) // 2] if lat else None},
         "suites": list(suites.values()),
-        "method": "Each case asserts policy verdict, key evidence cited, required tool use, forbidden claims, and the grounding validator.",
+        "method": ("Each case asserts policy verdict, key evidence cited, required tool use, forbidden claims, and the grounding validator. "
+                   "With repeat > 1 a case is stable (all runs pass), flaky (some) or failing (none): agent nondeterminism is measured, not hidden."),
     }
     return report
 
@@ -139,13 +163,14 @@ if __name__ == "__main__":
     p.add_argument("--only", nargs="*")
     p.add_argument("--pause", type=float, default=0.0)
     p.add_argument("--replays", action="store_true")
+    p.add_argument("--repeat", type=int, default=1)
     a = p.parse_args()
-    rep = run("live" if a.live else "offline", a.only, a.pause, a.replays)
+    rep = run("live" if a.live else "offline", a.only, a.pause, a.replays, a.repeat)
     EVAL_DIR.mkdir(parents=True, exist_ok=True)
     name = "latest.json" if a.live else "offline.json"
     (EVAL_DIR / name).write_text(json.dumps(rep, indent=2), encoding="utf-8")
     print(json.dumps(rep["summary"]), "->", EVAL_DIR / name)
     for s in rep["suites"]:
         for c in s["cases"]:
-            print(("PASS " if c["passed"] else "FAIL ") + c["id"], c["actual"]["verdict"], c["actual"]["tools"],
+            print(("PASS " if c["passed"] else "FAIL ") + c["id"], f"{c['runs_passed']}/{c['runs']} {c['stability']}", c["actual"]["verdict"], c["actual"]["tools"],
                   [x["name"] + ":" + x["detail"] for x in c["checks"] if not x["passed"]])

@@ -366,6 +366,8 @@ export interface FlakyResponse {
       source: string;
       retry_ci_minutes?: number;
       breakdown?: Record<string, number>;
+      split?: { test_retry_passes: number; infra_retry_passes: number; final_failures: number };
+      what_counts?: string;
     };
     assumed: {
       minutes_per_investigation: Record<Band, number>;
@@ -432,6 +434,9 @@ export interface EvalCase {
   passed?: boolean;
   checks?: EvalCheck[];
   elapsed_ms?: number;
+  runs?: number;
+  runs_passed?: number;
+  stability?: "stable" | "flaky" | "failing";
   [key: string]: unknown;
 }
 
@@ -450,7 +455,8 @@ export interface EvalRun {
   models?: string[];
   method?: string;
   suites?: EvalSuite[];
-  summary?: { passed?: number; total?: number; median_latency_ms?: number };
+  repeat?: number;
+  summary?: { passed?: number; total?: number; median_latency_ms?: number; run_pass_rate?: number; stable?: number; flaky?: number; failing?: number };
   [key: string]: unknown;
 }
 

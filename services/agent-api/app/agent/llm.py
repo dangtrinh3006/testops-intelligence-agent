@@ -25,7 +25,7 @@ def model_config() -> ModelConfig | None:
     if key:
         return ModelConfig(
             os.environ.get("LLM_BASE_URL", GEMINI_OPENAI_URL), key,
-            os.environ.get("LLM_MODEL", "gemini-3.5-flash"), os.environ.get("LLM_FALLBACK_MODEL", "gemini-3.5-flash-lite"), timeout,
+            os.environ.get("LLM_MODEL", "gemini-3.5-flash-lite"), os.environ.get("LLM_FALLBACK_MODEL", "gemini-3.5-flash"), timeout,
         )
     gw = os.environ.get("AI_GATEWAY_API_KEY") or os.environ.get("VERCEL_OIDC_TOKEN")
     if gw:

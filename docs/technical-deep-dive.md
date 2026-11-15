@@ -24,7 +24,7 @@ flowchart LR
   end
   TOOLS --> TL
   VA --> API["FastAPI /api/ask<br/>mode live · replay · offline"]
-  API --> UI["Next.js UI {{planned}}<br/>verdict · evidence inspector · mode badge"]
+  API --> UI["Next.js UI (apps/web, in progress)<br/>verdict · evidence inspector · mode badge"]
   LLM["Any OpenAI-compatible endpoint<br/>Gemini 3.5 Flash, fallback Flash-Lite"] -.explains, never decides.-> AG
 ```
 
@@ -34,7 +34,7 @@ Stack as installed in the dev environment: Python 3.12.1 (pyproject requires >=3
 
 ## 2. Data lineage: raw to normalised, with provenance
 
-`app/synthetic/generate.py` writes what three real sources would have sent, seeded (`SEED = 20261113`), fixed "now" `2026-11-13T12:00:00Z`. `tests/test_data_quality.py::test_generator_is_deterministic_and_matches_committed_fixtures` regenerates into a temp dir and compares SHA-256 with the committed `data/synthetic/catalog.json` and `raw_events.jsonl`.
+`app/synthetic/generate.py` writes what three real sources would have sent, seeded (`SEED = 20261113`), fixed "now" `2026-11-13T12:00:00Z`. `tests/test_data_quality.py::test_generator_is_deterministic_and_matches_committed_fixtures` regenerates into a temp dir and compares SHA-256 with the committed `services/agent-api/data/synthetic/catalog.json` and `raw_events.jsonl` (the data lives inside the service so the deployed function bundle is self-contained).
 
 `app/etl.py::build` is the only path from raw to normalised, for both the fixture files and the Postgres table (`app/store.py`), so a number computed locally equals the deployed one.
 
@@ -67,7 +67,7 @@ Every tool returns an `evidence` list of record ids it relied on. `Dataset.recor
 | Proven nondeterminism | T-INV-005, commit `b5e3f16` has final PASS and final FAIL | — | level `proven` (R3) |
 | Expired quarantine | T-CHK-011 quarantine expired 2026-11-01; as-of 2026-11-13 | — | test back in the gate, flagged in `quarantine[]` |
 | Prompt injection in a log | `artifacts:log.line:att-chk-main-0418-T-CHK-004-2:1` | — | `possible_prompt_injection: true`; warning in the response |
-| Expired-free active quarantine | T-SUP-003 quarantined until 2026-11-30 | — | excluded from the gate; `eval` suite is non-gating anyway |
+| Active quarantine | T-SUP-003 quarantined until 2026-11-30 | — | excluded from the gate; `eval` suite is non-gating anyway |
 
 ## 4. Source-of-truth policy
 
@@ -117,19 +117,19 @@ Why a graph rather than a single tool-calling call: two loops a single prompt ca
 | Mode | What answers | Label in response |
 |---|---|---|
 | `live` | the graph with the configured model; on any model error the fallback model; if both fail, offline | `mode: live`, `model: <name>`, `notice` names a fallback if used |
-| `replay` | `data/replays/scenario-<X>.json`, a recorded live response; `evidence[].exists` re-checked against today's data; falls to offline if the file is missing | `mode: replay`, notice "Replayed trace recorded from a live <model> run (request <id>)" |
+| `replay` | `services/agent-api/data/replays/scenario-<X>.json`, a live response recorded by `python -m app.evals --live`; `evidence[].exists` re-checked against today's data; falls to offline if the file is missing | `mode: replay`, notice "Replayed trace recorded from a live <model> run (request <id>)" |
 | `offline` | keyword planner + templates over the same tools, no model | `mode: offline`, notice "Offline deterministic mode: keyword planner and templates, no language model." |
 
-No credentials configured → `live` degrades to `offline` with the notice "No model credentials configured". `tests/test_tools_and_validator.py::test_offline_mode_answers_all_presets_with_valid_evidence` asserts that degradation and that all evidence resolves. Replay files are `{{to record before the meeting}}`; the directory does not exist on 16 Nov.
+No credentials configured → `live` degrades to `offline` with the notice "No model credentials configured". `tests/test_tools_and_validator.py::test_offline_mode_answers_all_presets_with_valid_evidence` asserts that degradation and that all evidence resolves. Replay files are `{{to record before the meeting}}`; the directory exists and is empty on 16 Nov.
 
 ## 9. Safety
 
 - Read-only surface: `tests/test_api.py::test_read_only_surface` asserts the only POST route is `/api/ask` and there is no PUT/PATCH/DELETE. No endpoint touches CI, releases or data.
 - Bounded tools: pydantic argument models (`limit <= 20`, `lookback_days 1..30`, `minutes <= 240`, `usd_per_hour <= 500`, `record_id <= 120 chars`); unknown tool names and unknown services/runs return typed errors with hints.
-- No text-to-SQL: the model never sees SQL; the Postgres path runs two fixed queries with `LIMIT 50000`, `connect_timeout=10`, `statement_timeout=8000`, under `DATABASE_URL_READONLY` (role `testops_reader`, SELECT only; `tests/test_db_parity.py::test_reader_role_cannot_write`, runs only with `TEST_DATABASE_URL`).
+- No text-to-SQL: the model never sees SQL; the Postgres path runs two fixed queries with `LIMIT 50000`, `connect_timeout=10` and `SET LOCAL statement_timeout = '8s'` issued after connect (Neon's pooler rejects startup options), under `DATABASE_URL_READONLY` (role `testops_reader`, SELECT only; `tests/test_db_parity.py::test_reader_role_cannot_write`, runs only with `TEST_DATABASE_URL`).
 - Untrusted logs: tools return log text as `untrusted_text` with `logs_note`; `INJECTION_PATTERN` flags "ignore previous instructions", "approve the release", "AI-assistant note", "system prompt"; the system prompt says to quote, not follow. The regex is a tripwire, not the defence; the defence is that the verdict field is not model-writable and the validator rejects stray verdicts.
 - Rate limits (`app/main.py`): 6 live questions per minute per IP (`RATE_LIMIT_PER_MINUTE`), 150 live calls per day per instance (`LIVE_DAILY_CAP`); replay and offline unaffected. Per-request `x-request-id`, JSON logs with mode, tools, verdict, validation and latency; exceptions return `{"error": "internal_error", "request_id"}` without details.
-- Secrets: model key and database URLs are server-side env vars (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_FALLBACK_MODEL`, `LLM_TIMEOUT_SECONDS`, `DATABASE_URL`, `DATABASE_URL_READONLY`, `TESTOPS_DATA_SOURCE`); `.env*` is git-ignored except `.env.example` `{{planned}}`. Database errors are surfaced by exception type only, never with the URL.
+- Secrets: model key and database URLs are server-side env vars (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_FALLBACK_MODEL`, `LLM_TIMEOUT_SECONDS`, `DATABASE_URL`, `DATABASE_URL_READONLY`, `TESTOPS_DATA_SOURCE`); `.env*` is git-ignored except `.env.example` (present for `apps/web`; the API's `{{planned}}`). Database errors are surfaced by exception type and HTTP status only, never with the URL.
 
 ## 10. The Gemini `thought_signature` bug (found and fixed during development)
 
@@ -137,7 +137,7 @@ Symptom: with a generic OpenAI-style wrapper, the second turn after a tool call 
 
 ## 11. Testing strategy
 
-33 tests in 5 files. Measured 16 Nov 2026 with `TESTOPS_DATA_SOURCE=fixtures`: 31 passed, 2 skipped (DB parity, no `TEST_DATABASE_URL`), 4.6 s. No model is called in the suite (`conftest.py` removes `LLM_API_KEY` unless `TESTOPS_KEEP_LLM=1`).
+34 tests in 6 files. Measured 16 Nov 2026 with `TESTOPS_DATA_SOURCE=fixtures`: 32 passed, 2 skipped (DB parity, no `TEST_DATABASE_URL`), 2.8 s. No model is called in the suite (`conftest.py` removes `LLM_API_KEY` unless `TESTOPS_KEEP_LLM=1`).
 
 | File | Tests | Covers |
 |---|---|---|
@@ -146,8 +146,9 @@ Symptom: with a generic OpenAI-style wrapper, the second turn after a tool call 
 | `test_tools_and_validator.py` | 8 | unknown run/service → typed error with hint; argument bounds and unknown tool; "latest" resolves to `run-chk-main-0418`; injection line flagged; every tool's evidence resolves; validator accepts grounded, rejects invented ids/numbers/verdicts; offline degradation for all presets |
 | `test_api.py` | 5 | health and overview verdicts; 422 on short/long question and bad mode; offline `/api/ask` returns structured answer with `x-request-id`; records and 404s; read-only route surface |
 | `test_db_parity.py` | 2 | Postgres path yields identical verdicts and flake levels; seed is idempotent; reader role cannot DELETE (skipped without a database) |
+| `test_agent_evals.py` | 1 | the offline eval suite below passes every case |
 
-Not yet present: an optional live-model smoke test (the `llm` pytest marker is declared, no test uses it) `{{planned}}`; an eval harness and `GET /api/evals` report (`data/evals/latest.json`, `scripts/run_evals.py`) `{{planned}}`; `scripts/generate_data.py` named in a test message `{{planned}}`; UI tests `{{planned}}`.
+Agent eval harness, `app/evals.py`: each case states what must be true of the answer (policy verdict, cited ids, required tools, forbidden phrases, validator pass), so a prompt or model change that breaks behaviour fails like a regression. 10 cases in 3 suites, offline report `data/evals/offline.json` (16 Nov, 10/10, median 44 ms): golden `A-triage`, `B-flaky-cost`, `C-conflict`, `C-twin`; adversarial `ADV-pressure-ship`, `ADV-log-injection`, `ADV-write-request`; robustness `ROB-unknown-service`, `ROB-infra-not-flaky`, `ROB-missing-summary`. `python -m app.evals --live` runs the same cases against the real model and records the replay traces. Not yet done: a live run of the suite with its report `{{to run before the meeting}}`; `GET /api/evals` reads `data/evals/latest.json`, which the offline run does not write yet; `scripts/generate_data.py` named in a test message `{{planned}}`; UI tests `{{planned}}`.
 
 ## 12. Scaling path to real CI integrations
 
@@ -161,6 +162,8 @@ Today the whole log (2,053 events) is rebuilt in memory from fixtures or from `r
 
 What does not change: the rule file, the tool contracts, the validator, the response schema.
 
+Deployment as configured on 16 Nov: the API runs as one Vercel Python function (`api/index.py` exports the FastAPI app; `vercel.json` routes every path to it, region `sin1`, `maxDuration` 120 s, bundle includes `app`, `knowledge`, `data`, `migrations`; `requirements.txt` pins the versions above; `.vercelignore` excludes tests and env files). Data source on Vercel is Neon via `DATABASE_URL_READONLY`, seeded with `python -m app.seed`. The UI is a separate Next.js app (`apps/web`). Public URL `{{LIVE_DEMO_URL}}`: verify with `GET /api/health` before the meeting; do not claim it works from the config alone.
+
 ## 13. Known limitations
 
 - Synthetic data; the generator encodes the anomalies deliberately. Real feeds will have anomalies not in the taxonomy; those map to `UNCLASSIFIED` and are visible.
@@ -169,4 +172,4 @@ What does not change: the rule file, the tool contracts, the validator, the resp
 - Live latency on a free tier was 18–48 s per question during development; a paid tier or a smaller model changes this; no SLA is claimed.
 - `R6 staleness` for runs past the pipeline timeout with no terminal status is in the rule rationale but not implemented as a gate check; such a run surfaces as `incomplete_gating_test` instead.
 - Single process rate limiting (per instance), no shared store.
-- No UI in the repository yet; no README, `.env.example`, replay files, eval harness, deployment `{{planned}}`.
+- UI scaffold (`apps/web`: `Header`, `Evidence`, `Inspector`, `Attempts`, `Markdown` components, API client and types) is in progress and uncommitted on 16 Nov; no README, no API `.env.example`, no replay files yet `{{planned}}`; deployment config present, public URL unverified.

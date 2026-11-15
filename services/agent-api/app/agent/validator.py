@@ -8,6 +8,8 @@ import re
 from app.etl import Dataset
 
 VERDICT_RE = re.compile(r"\b(SHIP_WITH_WARNINGS|HOLD_MANUAL_REVIEW|HOLD|BLOCK|SHIP)\b")
+# "cannot SHIP", "do not BLOCK": a negated verdict word is not a verdict claim.
+NEGATED_RE = re.compile(r"\b(?:cannot|can't|can not|not|never|don't|do not|no)\s+(?:be\s+)?(?:SHIP_WITH_WARNINGS|HOLD_MANUAL_REVIEW|HOLD|BLOCK|SHIP)\b", re.I)
 # Ids and dates contain digits that are not claims; strip them before checking numbers.
 ID_RE = re.compile(r"\b(?:run|att|rc|evt|DQ|T|R|ci|runner|artifacts)[-:][\w.:\-]+|\b\d{4}-\d{2}-\d{2}(?:[T ][\d:]+Z?)?|\b[0-9a-f]{7}\b|\bv?\d+\.\d+\.\d+\b", re.I)
 NUM_RE = re.compile(r"(?<![\w.])\$?(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)%?")
@@ -55,9 +57,10 @@ def validate(answer: str, claims: list[dict], tool_results: list[dict], ds: Data
             c["supported"], c["note"] = False, "no evidence cited"
 
     # 3. Any release verdict in the text must be one the policy function produced.
-    mentioned = {m.group(1) for m in VERDICT_RE.finditer(answer)}
+    mentioned = {m.group(1) for m in VERDICT_RE.finditer(NEGATED_RE.sub(" ", answer))}
     mentioned = {"HOLD_MANUAL_REVIEW" if v == "HOLD" else v for v in mentioned}
-    produced = set(gate_verdicts.values())
+    # Verdicts the policy produced in this request: explicit gate calls and the gate column of run listings.
+    produced = set(gate_verdicts.values()) | {r["gate_verdict"] for t in tool_results for r in t.get("runs", []) if r.get("gate_verdict")}
     stray = sorted(mentioned - produced)
     checks.append({"name": "verdict_matches_policy", "passed": not stray,
                    "detail": f"Verdicts in text {sorted(mentioned) or 'none'} vs policy {sorted(produced) or 'not evaluated'}"

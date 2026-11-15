@@ -1,0 +1,206 @@
+{
+  "request_id": "req_3fd5cf36d63c",
+  "mode": "live",
+  "model": "gemini-3.5-flash-lite",
+  "question": "The CI summary for payments-api 2.14.0 says PASS, but the raw execution data contains failures. Can we ship?",
+  "answer": "No, we cannot ship right now. Although the CI summary (`ci:run.summary:run-pay-main-0233`) reports `PASS`, raw execution data shows test `T-PAY-004` failed on attempt 1 (`att-pay-main-0233-T-PAY-004-1`) with a product assertion error, and its second attempt (`att-pay-main-0233-T-PAY-004-2`) resulted in an incomplete status with no final result reported (`DQ-INC-005`). \n\nEvaluating the release gate (`run-pay-main-0233`) yields a verdict of **HOLD_MANUAL_REVIEW** under rule R5 due to the incomplete gating test and summary conflict.\n\n- **Attempt 1 Failure:** `att-pay-main-0233-T-PAY-004-1` failed due to idempotency key reuse mismatch.\n- **Incomplete Test:** `att-pay-main-0233-T-PAY-004-2` never finished.\n- **Gate Verdict:** `HOLD_MANUAL_REVIEW` (Rule R5).",
+  "recommendation": "HOLD_MANUAL_REVIEW: Hold the release. A release manager should rerun or inspect the unresolved test, then re-evaluate the gate.",
+  "gate": {
+    "run_id": "run-pay-main-0233",
+    "verdict": "HOLD_MANUAL_REVIEW",
+    "deciding_rule": "R5",
+    "policy_id": "release-policy-v3",
+    "rules_version": "2026.11.0",
+    "checks": [
+      {
+        "condition": "unresolved_failure",
+        "triggered": false,
+        "rule": "R2",
+        "detail": "No gating test has a failing final attempt.",
+        "evidence": []
+      },
+      {
+        "condition": "incomplete_gating_test",
+        "triggered": true,
+        "rule": "R5",
+        "detail": "T-PAY-004: attempt 2 (att-pay-main-0233-T-PAY-004-2) started but never reported a result",
+        "evidence": [
+          "att-pay-main-0233-T-PAY-004-1",
+          "att-pay-main-0233-T-PAY-004-2"
+        ]
+      },
+      {
+        "condition": "summary_conflict",
+        "triggered": true,
+        "rule": "R5",
+        "detail": "CI summary ci:run.summary:run-pay-main-0233 says PASS (raw 'passed'), but T-PAY-004 final=INCOMPLETE (att-pay-main-0233-T-PAY-004-2)",
+        "evidence": [
+          "ci:run.summary:run-pay-main-0233",
+          "att-pay-main-0233-T-PAY-004-1",
+          "att-pay-main-0233-T-PAY-004-2"
+        ]
+      },
+      {
+        "condition": "missing_ci_summary",
+        "triggered": false,
+        "rule": "R6",
+        "detail": "CI summary present (ci:run.summary:run-pay-main-0233).",
+        "evidence": [
+          "ci:run.summary:run-pay-main-0233"
+        ]
+      },
+      {
+        "condition": "retry_pass_in_gating",
+        "triggered": false,
+        "rule": "R2",
+        "detail": "No retries were needed.",
+        "evidence": []
+      }
+    ]
+  },
+  "claims": [
+    {
+      "text": "CI summary reports PASS for run-pay-main-0233.",
+      "evidence": [
+        "ci:run.summary:run-pay-main-0233"
+      ],
+      "supported": true,
+      "note": null
+    },
+    {
+      "text": "Test T-PAY-004 attempt 1 failed with a product assertion error.",
+      "evidence": [
+        "att-pay-main-0233-T-PAY-004-1"
+      ],
+      "supported": true,
+      "note": null
+    },
+    {
+      "text": "Test T-PAY-004 attempt 2 is incomplete with no terminal result.",
+      "evidence": [
+        "att-pay-main-0233-T-PAY-004-2",
+        "DQ-INC-005"
+      ],
+      "supported": true,
+      "note": null
+    },
+    {
+      "text": "Release gate evaluation returned HOLD_MANUAL_REVIEW under rule R5.",
+      "evidence": [
+        "run-pay-main-0233"
+      ],
+      "supported": true,
+      "note": null
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ci:run.summary:run-pay-main-0233",
+      "kind": "ci_summary",
+      "label": "CI summary passed",
+      "exists": true
+    },
+    {
+      "id": "att-pay-main-0233-T-PAY-004-1",
+      "kind": "attempt",
+      "label": "T-PAY-004 attempt 1: FAIL",
+      "exists": true
+    },
+    {
+      "id": "att-pay-main-0233-T-PAY-004-2",
+      "kind": "attempt",
+      "label": "T-PAY-004 attempt 2: NO_RESULT",
+      "exists": true
+    },
+    {
+      "id": "DQ-INC-005",
+      "kind": "finding",
+      "label": "INCOMPLETE_ATTEMPT",
+      "exists": true
+    },
+    {
+      "id": "run-pay-main-0233",
+      "kind": "run",
+      "label": "pay-main #233 (e71b0aa)",
+      "exists": true
+    }
+  ],
+  "data_quality_warnings": [
+    "DQ-INC-005 INCOMPLETE_ATTEMPT: att-pay-main-0233-T-PAY-004-2 started at 2026-11-13T09:51:06Z but never reported a result; final status unknown."
+  ],
+  "assumptions": [
+    "All timestamps are UTC.",
+    "Release policy v3 is authoritative."
+  ],
+  "uncertainty": "It is unknown whether the idempotency key failure in T-PAY-004 is a bug in payments-api 2.14.0 or a test environment artifact, as the second attempt never completed.",
+  "tool_trace": [
+    {
+      "step": 1,
+      "tool": "get_run_details",
+      "args": {
+        "run_id": "rc-pay-2.14.0"
+      },
+      "ok": true,
+      "ms": 1,
+      "summary": "run-pay-main-0233: 8 tests, 1 need attention, CI summary PASS",
+      "evidence": [
+        "run-pay-main-0233",
+        "ci:run.summary:run-pay-main-0233",
+        "att-pay-main-0233-T-PAY-004-1",
+        "att-pay-main-0233-T-PAY-004-2",
+        "artifacts:log.line:att-pay-main-0233-T-PAY-004-1:0",
+        "DQ-INC-005"
+      ]
+    },
+    {
+      "step": 2,
+      "tool": "evaluate_release_gate",
+      "args": {
+        "run_id": "rc-pay-2.14.0"
+      },
+      "ok": true,
+      "ms": 1,
+      "summary": "run-pay-main-0233: HOLD_MANUAL_REVIEW (rule R5, release-policy-v3)",
+      "evidence": [
+        "run-pay-main-0233",
+        "release-policy-v3",
+        "att-pay-main-0233-T-PAY-004-1",
+        "att-pay-main-0233-T-PAY-004-2",
+        "ci:run.summary:run-pay-main-0233"
+      ]
+    }
+  ],
+  "validation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "evidence_ids_resolve",
+        "passed": true,
+        "detail": "All cited ids exist."
+      },
+      {
+        "name": "evidence_retrieved_this_request",
+        "passed": true,
+        "detail": "Every cited id was returned by a tool call."
+      },
+      {
+        "name": "claims_have_evidence",
+        "passed": true,
+        "detail": "Each claim cites evidence."
+      },
+      {
+        "name": "verdict_matches_policy",
+        "passed": true,
+        "detail": "Verdicts in text ['HOLD_MANUAL_REVIEW'] vs policy ['HOLD_MANUAL_REVIEW']"
+      },
+      {
+        "name": "numbers_grounded",
+        "passed": true,
+        "detail": "Every number appears in tool output."
+      }
+    ],
+    "revisions": 0
+  },
+  "latency_ms": 17652,
+  "notice": null
+}

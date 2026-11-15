@@ -162,10 +162,16 @@ def knowledge_file():
 
 @app.get("/api/evals")
 def evals():
-    path = DATA_DIR.parent / "evals" / "latest.json"
-    if not path.exists():
-        raise HTTPException(404, {"error": "not_found", "message": "No eval report yet. Run scripts/run_evals.py."})
-    return json.loads(path.read_text(encoding="utf-8"))
+    """Live-model report when one was recorded, plus the offline (CI) report."""
+    out = {}
+    for name in ("latest", "offline"):
+        path = DATA_DIR.parent / "evals" / f"{name}.json"
+        if path.exists():
+            out["live" if name == "latest" else "offline"] = json.loads(path.read_text(encoding="utf-8"))
+    if not out:
+        raise HTTPException(404, {"error": "not_found", "message": "No eval report yet. Run python -m app.evals."})
+    primary = out.get("live") or out["offline"]
+    return {**primary, "reports": out}
 
 
 @app.get("/api/tools")

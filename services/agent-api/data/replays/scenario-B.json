@@ -1,0 +1,195 @@
+{
+  "request_id": "req_712659eb2935",
+  "mode": "live",
+  "model": "gemini-3.5-flash-lite",
+  "question": "Which tests appear flaky, and how much engineering time might they be costing us?",
+  "answer": "Based on 30-day analysis, several tests show flakiness or infrastructure failures:\n\n* **Proven flake:** `T-INV-005` (inventory-svc, TimeoutError) [T-INV-005]\n* **Suspected flakes:** `T-SUP-003` (support-assistant, EvalScoreBelowThreshold) and `T-CHK-006` (checkout-web, ElementNotInteractable) [T-SUP-003, T-CHK-006]\n* **Consistent failure:** `T-CHK-004` (checkout-web, AssertionError) [T-CHK-004]\n* **Infra-only issues:** `T-CHK-011` (SessionProvisioningTimeout) and `T-PAY-004` (ConnectionResetError) [T-CHK-011, T-PAY-004]\n\nAcross 25 investigations in 30 days, illustrative cost estimates (assuming 20 minutes per investigation and $60/hour loaded rate) total approximately **8.3 engineer-hours** or **$500** (range: $167 to $1,312) [T-INV-005, T-SUP-003, T-CHK-006, T-CHK-004, T-CHK-011, T-PAY-004].",
+  "recommendation": "Review infrastructure stability for T-CHK-011 and T-PAY-004, and investigate root causes for T-INV-005 and T-SUP-003.",
+  "gate": null,
+  "claims": [
+    {
+      "text": "T-INV-005 is a proven flaky test in inventory-svc with timeout errors.",
+      "evidence": [
+        "T-INV-005"
+      ],
+      "supported": true,
+      "note": null
+    },
+    {
+      "text": "T-SUP-003 and T-CHK-006 are suspected flaky tests.",
+      "evidence": [
+        "T-SUP-003",
+        "T-CHK-006"
+      ],
+      "supported": true,
+      "note": null
+    },
+    {
+      "text": "T-CHK-004 is a consistent failure with an assertion error.",
+      "evidence": [
+        "T-CHK-004"
+      ],
+      "supported": true,
+      "note": null
+    },
+    {
+      "text": "T-CHK-011 and T-PAY-004 are infrastructure-only failures rather than test flakes.",
+      "evidence": [
+        "T-CHK-011",
+        "T-PAY-004"
+      ],
+      "supported": true,
+      "note": null
+    },
+    {
+      "text": "Illustrative triage cost is 8.3 engineer-hours or $500 based on 25 investigations.",
+      "evidence": [
+        "T-INV-005",
+        "T-SUP-003",
+        "T-CHK-006",
+        "T-CHK-004",
+        "T-CHK-011",
+        "T-PAY-004"
+      ],
+      "supported": true,
+      "note": null
+    }
+  ],
+  "evidence": [
+    {
+      "id": "T-INV-005",
+      "kind": "test",
+      "label": "reservation › released after TTL expiry",
+      "exists": true
+    },
+    {
+      "id": "T-SUP-003",
+      "kind": "test",
+      "label": "eval › refund-policy answer is grounded with citation",
+      "exists": true
+    },
+    {
+      "id": "T-CHK-006",
+      "kind": "test",
+      "label": "account › saved addresses render",
+      "exists": true
+    },
+    {
+      "id": "T-CHK-004",
+      "kind": "test",
+      "label": "checkout › coupon SAVE10 reduces order total",
+      "exists": true
+    },
+    {
+      "id": "T-CHK-011",
+      "kind": "test",
+      "label": "checkout › 3DS challenge iframe loads",
+      "exists": true
+    },
+    {
+      "id": "T-PAY-004",
+      "kind": "test",
+      "label": "refund › idempotency key reuse returns original refund",
+      "exists": true
+    }
+  ],
+  "data_quality_warnings": [
+    "2 duplicate raw events were counted once (findings DQ-DUP-001, DQ-DUP-002).",
+    "Runs where a test never reported a final result are excluded from its rates, not counted as pass or fail.",
+    "Retry minutes use measured durations only; attempts without an end time are listed, not imputed.",
+    "INFRA / EXTERNAL_DEPENDENCY retries are reported separately and do not raise a test's flake level (R1)."
+  ],
+  "assumptions": [
+    "Cost figures are illustrative based on assumed 20 minutes per investigation and $60/hour loaded rate",
+    "Window covers 30 days as of 2026-11-13T12:00:00Z",
+    "Effort model: engineer_hours = investigations x minutes_per_investigation / 60;  cost = engineer_hours x loaded_hourly_rate. Minutes/investigation {'low': 10, 'base': 20, 'high': 35}, USD/hour {'low': 40, 'base': 60, 'high': 90} (illustrative, not measured)."
+  ],
+  "uncertainty": "Exact engineer hourly rates and investigation durations are assumed parameters rather than measured internal tracking data.",
+  "tool_trace": [
+    {
+      "step": 1,
+      "tool": "analyze_flaky_tests",
+      "args": {},
+      "ok": true,
+      "ms": 33,
+      "summary": "T-INV-005=proven, T-SUP-003=suspected, T-CHK-006=suspected, T-CHK-004=consistent_failure, T-CHK-011=infra_only, T-PAY-004=infra_only",
+      "evidence": [
+        "T-INV-005",
+        "T-SUP-003",
+        "T-CHK-006",
+        "T-CHK-004",
+        "T-CHK-011",
+        "T-PAY-004",
+        "att-inv-main-0142-T-INV-005-1",
+        "att-inv-main-0146-T-INV-005-1",
+        "att-inv-main-0149-T-INV-005-1",
+        "att-inv-main-0150-T-INV-005-2",
+        "att-sup-eval-0031-T-SUP-003-1",
+        "att-sup-eval-0034-T-SUP-003-1",
+        "att-sup-eval-0037-T-SUP-003-1",
+        "att-sup-eval-0039-T-SUP-003-1",
+        "att-chk-main-0401-T-CHK-006-1",
+        "att-chk-main-0410-T-CHK-006-1",
+        "att-chk-main-0418-T-CHK-004-2",
+        "att-chk-e2e-0066-T-CHK-011-1",
+        "att-chk-e2e-0075-T-CHK-011-1",
+        "att-chk-main-0398-T-CHK-011-1",
+        "att-chk-main-0403-T-CHK-011-1",
+        "att-pay-main-0232-T-PAY-004-1",
+        "DQ-DUP-001",
+        "DQ-DUP-002"
+      ]
+    },
+    {
+      "step": 2,
+      "tool": "estimate_triage_cost",
+      "args": {
+        "lookback_days": 30
+      },
+      "ok": true,
+      "ms": 27,
+      "summary": "25 investigations in 30 days; base 8.3 engineer-hours (illustrative)",
+      "evidence": [
+        "T-INV-005",
+        "T-SUP-003",
+        "T-CHK-006",
+        "T-CHK-004",
+        "T-CHK-011",
+        "T-PAY-004"
+      ]
+    }
+  ],
+  "validation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "evidence_ids_resolve",
+        "passed": true,
+        "detail": "All cited ids exist."
+      },
+      {
+        "name": "evidence_retrieved_this_request",
+        "passed": true,
+        "detail": "Every cited id was returned by a tool call."
+      },
+      {
+        "name": "claims_have_evidence",
+        "passed": true,
+        "detail": "Each claim cites evidence."
+      },
+      {
+        "name": "verdict_matches_policy",
+        "passed": true,
+        "detail": "Verdicts in text none vs policy not evaluated"
+      },
+      {
+        "name": "numbers_grounded",
+        "passed": true,
+        "detail": "Every number appears in tool output."
+      }
+    ],
+    "revisions": 0
+  },
+  "latency_ms": 13483,
+  "notice": null
+}

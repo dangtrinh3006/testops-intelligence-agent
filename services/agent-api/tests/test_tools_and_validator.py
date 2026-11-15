@@ -78,3 +78,14 @@ def test_offline_mode_answers_all_presets_with_valid_evidence(ds):
         assert (r.gate.verdict if r.gate else None) == expected[key]
         assert r.validation.passed, r.validation.checks
         assert all(e.exists for e in r.evidence)
+
+
+def test_validator_ignores_negated_verdict_words_and_accepts_listed_policy_verdicts(ds):
+    r = _results(ds)
+    claims = [{"text": "T-PAY-004 attempt 2 never reported", "evidence": ["att-pay-main-0233-T-PAY-004-2"]}]
+    v = validate("We cannot SHIP today: the gate says HOLD_MANUAL_REVIEW.", claims, r, ds, {"run-pay-main-0233": "HOLD_MANUAL_REVIEW"})
+    assert v["passed"], v
+    listing = [run_tool(ds, "find_pipeline_runs", {"service_id": "checkout-web", "limit": 1})]
+    claims = [{"text": "latest checkout run", "evidence": ["run-chk-main-0418"]}]
+    v = validate("The latest checkout run has a BLOCK verdict.", claims, listing, ds, {})
+    assert v["passed"], v

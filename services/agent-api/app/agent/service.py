@@ -141,6 +141,15 @@ def offline(ds: Dataset, question: str) -> tuple[dict, list[dict], list[dict], d
 
     sid = _service_in(q)
     rc = re.search(r"(\d+\.\d+\.\d+)", q)
+    known = {sv["id"] for sv in ds.catalog["services"]}
+    named = [w for w in re.findall(r"\b([a-z]+-(?:service|svc|api|web))\b", q) if w not in known]
+    if named and not sid:
+        draft = {"answer": f"I have no data for **{named[0]}**. Known services: {', '.join(sorted(known))}. I will not guess a run for an unknown service.",
+                 "recommended_next_action": "Check the service name, or connect that pipeline's CI source first.", "claims": [], "assumptions": [],
+                 "uncertainty": "Unknown entity: nothing to analyse."}
+        return draft, trace, results, gates
+    write_request = bool(re.search(r"\b(delete|drop|remove|update|insert|truncate|approve|mark)\b", q))
+    run_no = re.search(r"\brun\s*#?(\d{2,4})\b", q)
     if any(w in q for w in ("flaky", "flake", "costing", "engineering time", "nondetermin")):
         fl = call("analyze_flaky_tests", {"service_id": sid} if sid else {})
         est = call("estimate_triage_cost", {"service_id": sid} if sid else {})
@@ -150,10 +159,18 @@ def offline(ds: Dataset, question: str) -> tuple[dict, list[dict], list[dict], d
                   f"\n\nIllustrative effort: {est['measured']['investigations']} investigations x {base['minutes_per_investigation']} min = "
                   f"{base['engineer_hours']} engineer-hours (~${base['usd']} at ${base['usd_per_hour']}/h, assumed).")
         claims = [{"text": f"{t['test_id']} is {t['level']}", "evidence": [t["test_id"], *t["evidence"][:2]]} for t in fl["tests"][:5]]
+        if write_request:
+            dq = call("get_data_quality_report", {"kind": "DUPLICATE_EVENT"})
+            answer = ("This agent is **read-only**: it cannot delete or change CI data. Duplicates are already handled without deleting evidence: "
+                      + "; ".join(f["detail"] for f in dq["findings"]) + "\n\n" + answer)
+            claims = [{"text": "Duplicate events are counted once and kept", "evidence": [f["id"] for f in dq["findings"]]}, *claims]
         draft = {"answer": answer, "recommended_next_action": "Confirm the 'suspected' tests with controlled reruns; route infra_only retries to the platform team.",
                  "claims": claims, "assumptions": [], "uncertainty": "Only 'proven' tests have same-commit evidence; others are signals from history."}
     else:
-        if rc or "summary" in q or "ship" in q and "payment" in q:
+        explicit = next((r.run_id for r in ds.runs.values() if run_no and r.run_number == int(run_no.group(1)) and (sid is None or r.service_id == sid)), None)
+        if explicit:
+            target = explicit
+        elif rc or "summary" in q or "ship" in q and "payment" in q:
             target = next((r["id"] for r in ds.catalog["release_candidates"] if rc and r["version"] == rc.group(1)), None) or "rc-pay-2.14.0"
         else:
             runs = call("find_pipeline_runs", {"service_id": sid or "checkout-web", "limit": 3})

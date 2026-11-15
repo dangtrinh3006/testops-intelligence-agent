@@ -51,7 +51,10 @@ check("input validation", s == 422)
 s, nf = call("GET", "/api/records/run-does-not-exist")
 check("unknown id is 404", s == 404)
 s, ev = call("GET", "/api/evals")
-check("eval report", s == 200 and ev["summary"]["passed"] == ev["summary"]["total"], f"{ev['summary'] if s == 200 else ev}")
+off = ev.get("reports", {}).get("offline", {}).get("summary", {}) if s == 200 else {}
+live = ev.get("reports", {}).get("live", {}).get("summary", {}) if s == 200 else {}
+check("eval report (offline all pass, live none failing)", s == 200 and off.get("passed") == off.get("total") and live.get("failing", 0) == 0,
+      f"offline {off.get('passed')}/{off.get('total')}, live stable {live.get('stable')} flaky {live.get('flaky')} failing {live.get('failing')}")
 if LIVE:
     s, lv = call("POST", "/api/ask", {"question": "Why did the latest checkout pipeline fail, and should we block the release?", "mode": "live"}, timeout=150)
     check("ask live (scenario A)", s == 200 and lv["gate"]["verdict"] == "BLOCK", f"mode={lv.get('mode')} model={lv.get('model')} {lv.get('latency_ms')}ms" if s == 200 else str(lv))

@@ -36,7 +36,9 @@ def _load_from_db(url: str) -> tuple[dict, list[dict]]:
     import psycopg
 
     # Bounded: the PoC log is ~2k rows; the LIMIT protects the function if the table grows.
-    with psycopg.connect(url, connect_timeout=10, options="-c statement_timeout=8000") as conn, conn.cursor() as cur:
+    # SET LOCAL instead of a startup option: Neon's pooler (PgBouncer) rejects startup parameters.
+    with psycopg.connect(url, connect_timeout=10) as conn, conn.cursor() as cur:
+        cur.execute("SET LOCAL statement_timeout = '8s'")
         cur.execute("SELECT document FROM catalog WHERE id = 'current'")
         row = cur.fetchone()
         if not row:

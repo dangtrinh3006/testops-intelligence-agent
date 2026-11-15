@@ -210,7 +210,7 @@ def ask(ds: Dataset, question: str, mode: str = "live", scenario: str | None = N
                                  st.get("gates", {}), st["validation"], st.get("revisions", 0), t0, ds,
                                  None if model == cfg.model else f"Primary model failed ({last_err}); answered by fallback {model}.")
             except Exception as e:  # noqa: BLE001 - model/provider errors degrade to the next option
-                last_err = type(e).__name__
+                last_err = f"{type(e).__name__} {getattr(e, 'status', '') or ''}".strip()
         mode, notice = "offline", f"Model unavailable ({last_err}); answered by the offline deterministic planner. Tools and policy are unchanged."
 
     draft, trace, results, gates = offline(ds, question)

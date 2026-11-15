@@ -13,10 +13,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .agent.service import PRESETS, REPLAY_DIR, ask
 from .store import DATA_DIR, dataset
@@ -124,7 +123,7 @@ def run(mode: str = "offline", only: list[str] | None = None, pause_s: float = 0
         s["total"] += 1
         s["passed"] += int(r["passed"])
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "mode": mode, "data_source": source, "models": sorted(models),
         "summary": {"passed": sum(r["passed"] for r in results), "total": len(results),
                     "median_latency_ms": sorted(lat)[len(lat) // 2] if lat else None},

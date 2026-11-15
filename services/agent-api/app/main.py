@@ -53,7 +53,7 @@ async def request_context(request: Request, call_next):
     t0 = time.perf_counter()
     try:
         response = await call_next(request)
-    except Exception as e:  # noqa: BLE001 - last-resort guard; details stay in logs
+    except Exception as e:
         log.exception(json.dumps({"request_id": rid, "path": request.url.path, "error": type(e).__name__}))
         response = JSONResponse({"error": "internal_error", "request_id": rid}, status_code=500)
     response.headers["x-request-id"] = rid

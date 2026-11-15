@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import random
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 from .catalog import AS_OF, COMPANY, PIPELINES, RELEASE_CANDIDATES, RELEASE_POLICY, SERVICES, TESTS
@@ -128,7 +128,7 @@ def _fmt_epoch(dt: datetime, pipeline: str) -> int:
 
 
 def _fmt_naive(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    return dt.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def generate() -> tuple[dict, list[dict]]:
@@ -155,11 +155,11 @@ def generate() -> tuple[dict, list[dict]]:
             frac = idx / max(1, n_runs - 1)
             start = as_of - span + span * frac - timedelta(hours=3) + timedelta(minutes=rng.randint(0, 40))
             if (pid, idx) == ("chk-main", 23):
-                start = datetime(2026, 11, 13, 9, 12, 0, tzinfo=timezone.utc)
+                start = datetime(2026, 11, 13, 9, 12, 0, tzinfo=UTC)
             if (pid, idx) == ("pay-main", 19):
-                start = datetime(2026, 11, 13, 9, 50, 0, tzinfo=timezone.utc)
+                start = datetime(2026, 11, 13, 9, 50, 0, tzinfo=UTC)
             if (pid, idx) == ("pay-main", 18):
-                start = datetime(2026, 11, 12, 14, 5, 0, tzinfo=timezone.utc)
+                start = datetime(2026, 11, 12, 14, 5, 0, tzinfo=UTC)
             commit = _commit(rng, pid, idx, prev_commit)
             prev_commit = commit
             emit("ci", "run.created", rid, {
@@ -220,7 +220,7 @@ def generate() -> tuple[dict, list[dict]]:
     events.sort(key=lambda e: (e["received_at"], e["event_id"]))
     out = []
     for i, e in enumerate(events, start=1):
-        out.append({"ingest_id": i, **e, "received_at": e["received_at"].astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")})
+        out.append({"ingest_id": i, **e, "received_at": e["received_at"].astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")})
     catalog = {
         "company": COMPANY, "as_of": AS_OF, "services": [dict(s) for s in _services()], "pipelines": PIPELINES,
         "tests": TESTS, "release_policy": RELEASE_POLICY, "release_candidates": RELEASE_CANDIDATES,

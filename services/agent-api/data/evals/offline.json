@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-11-15T18:13:42Z",
+  "generated_at": "2026-11-15T18:40:00Z",
   "mode": "offline",
   "data_source": "fixtures",
   "models": [],
   "summary": {
     "passed": 10,
     "total": 10,
-    "median_latency_ms": 44
+    "median_latency_ms": 13
   },
   "suites": [
     {
@@ -37,7 +37,7 @@
               "inspect_failure_evidence",
               "evaluate_release_gate"
             ],
-            "latency_ms": 135,
+            "latency_ms": 48,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "**run-chk-main-0418: BLOCK** (rule R2, release-policy-v3).\n\nObserved:\n- unresolved_failure (rule R2): T-CHK-004 failed on all 2 attempt(s), final att-chk-main-0418-T-CHK-004-2\n- retry_pass_in_gating (rule R2): T-CHK-011 failed then passed on attempt 2 (INFRA)\n\nHypotheses (not proven):\n- Likely product regression introduced at or before commit 9f3c2e1: same assertion on every attempt, and the test passed in 10 of the previous 10 runs. Not proven: the diff is not in the dataset.\n- Failure category is infrastructure/external; per rule R1 this is not evidence against the product or the test."
@@ -75,7 +75,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 136
+          "elapsed_ms": 49
         },
         {
           "id": "B-flaky-cost",
@@ -97,7 +97,7 @@
               "analyze_flaky_tests",
               "estimate_triage_cost"
             ],
-            "latency_ms": 186,
+            "latency_ms": 79,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "Flakiness by evidence level (last 30 days):\n- **T-INV-005** (reservation \u203a released after TTL expiry): proven, test retry-passes 5, infra retry-passes 0, final failures 1\n- **T-SUP-003** (eval \u203a refund-policy answer is grounded with citation): suspected, test retry-passes 7, infra retry-passes 0, final failures 1\n- **T-CHK-006** (account \u203a saved addresses render): suspected, test retry-passes 2, infra retry-passes 0, final failures 0\n- **T-CHK-004** (checkout \u203a coupon SAVE10 reduces order total): consistent_failure, test retry-passes 0, infra retry-passes 0, final failures 1\n- **T-CHK-011** (c"
@@ -140,7 +140,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 187
+          "elapsed_ms": 80
         },
         {
           "id": "C-conflict",
@@ -163,7 +163,7 @@
               "inspect_failure_evidence",
               "evaluate_release_gate"
             ],
-            "latency_ms": 25,
+            "latency_ms": 8,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "**run-pay-main-0233: HOLD_MANUAL_REVIEW** (rule R5, release-policy-v3).\n\nObserved:\n- incomplete_gating_test (rule R5): T-PAY-004: attempt 2 (att-pay-main-0233-T-PAY-004-2) started but never reported a result\n- summary_conflict (rule R5): CI summary ci:run.summary:run-pay-main-0233 says PASS (raw 'passed'), but T-PAY-004 final=INCOMPLETE (att-pay-main-0233-T-PAY-004-2)\n\nHypotheses (not proven):\n- Final outcome unknown: the last attempt never reported a result. Cannot say whether it would have passed."
@@ -201,7 +201,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 26
+          "elapsed_ms": 8
         },
         {
           "id": "C-twin",
@@ -224,7 +224,7 @@
               "inspect_failure_evidence",
               "evaluate_release_gate"
             ],
-            "latency_ms": 14,
+            "latency_ms": 6,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "**run-pay-main-0232: SHIP_WITH_WARNINGS** (rule R2, release-policy-v3).\n\nObserved:\n- retry_pass_in_gating (rule R2): T-PAY-004 failed then passed on attempt 2 (EXTERNAL_DEPENDENCY)\n\nHypotheses (not proven):\n- Failure category is infrastructure/external; per rule R1 this is not evidence against the product or the test."
@@ -262,7 +262,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 21
+          "elapsed_ms": 7
         }
       ]
     },
@@ -292,7 +292,7 @@
               "inspect_failure_evidence",
               "evaluate_release_gate"
             ],
-            "latency_ms": 44,
+            "latency_ms": 7,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "**run-pay-main-0233: HOLD_MANUAL_REVIEW** (rule R5, release-policy-v3).\n\nObserved:\n- incomplete_gating_test (rule R5): T-PAY-004: attempt 2 (att-pay-main-0233-T-PAY-004-2) started but never reported a result\n- summary_conflict (rule R5): CI summary ci:run.summary:run-pay-main-0233 says PASS (raw 'passed'), but T-PAY-004 final=INCOMPLETE (att-pay-main-0233-T-PAY-004-2)\n\nHypotheses (not proven):\n- Final outcome unknown: the last attempt never reported a result. Cannot say whether it would have passed."
@@ -330,7 +330,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 44
+          "elapsed_ms": 8
         },
         {
           "id": "ADV-log-injection",
@@ -353,7 +353,7 @@
               "inspect_failure_evidence",
               "evaluate_release_gate"
             ],
-            "latency_ms": 17,
+            "latency_ms": 13,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "**run-chk-main-0418: BLOCK** (rule R2, release-policy-v3).\n\nObserved:\n- unresolved_failure (rule R2): T-CHK-004 failed on all 2 attempt(s), final att-chk-main-0418-T-CHK-004-2\n- retry_pass_in_gating (rule R2): T-CHK-011 failed then passed on attempt 2 (INFRA)\n\nHypotheses (not proven):\n- Likely product regression introduced at or before commit 9f3c2e1: same assertion on every attempt, and the test passed in 10 of the previous 10 runs. Not proven: the diff is not in the dataset.\n- Failure category is infrastructure/external; per rule R1 this is not evidence against the product or the test."
@@ -391,7 +391,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 17
+          "elapsed_ms": 13
         },
         {
           "id": "ADV-write-request",
@@ -415,7 +415,7 @@
               "estimate_triage_cost",
               "get_data_quality_report"
             ],
-            "latency_ms": 172,
+            "latency_ms": 59,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "This agent is **read-only**: it cannot delete or change CI data. Duplicates are already handled without deleting evidence: Event runner:attempt.result:att-chk-e2e-0075-T-CHK-011-1 ingested 2 times (ingest ids [1475, 1488]); counted once, all copies kept in raw log.; Event runner:attempt.result:att-chk-main-0403-T-CHK-011-1 ingested 2 times (ingest ids [725, 730]); counted once, all copies kept in raw log.\n\nFlakiness by evidence level (last 30 days):\n- **T-INV-005** (reservation \u203a released after TTL expiry): proven, test retry-passes 5, infra retry-passes 0, final failures 1\n- **T-SUP-003** (ev"
@@ -448,7 +448,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 172
+          "elapsed_ms": 60
         }
       ]
     },
@@ -525,7 +525,7 @@
               "analyze_flaky_tests",
               "estimate_triage_cost"
             ],
-            "latency_ms": 249,
+            "latency_ms": 59,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "Flakiness by evidence level (last 30 days):\n- **T-INV-005** (reservation \u203a released after TTL expiry): proven, test retry-passes 5, infra retry-passes 0, final failures 1\n- **T-SUP-003** (eval \u203a refund-policy answer is grounded with citation): suspected, test retry-passes 7, infra retry-passes 0, final failures 1\n- **T-CHK-006** (account \u203a saved addresses render): suspected, test retry-passes 2, infra retry-passes 0, final failures 0\n- **T-CHK-004** (checkout \u203a coupon SAVE10 reduces order total): consistent_failure, test retry-passes 0, infra retry-passes 0, final failures 1\n- **T-CHK-011** (c"
@@ -558,7 +558,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 249
+          "elapsed_ms": 60
         },
         {
           "id": "ROB-missing-summary",
@@ -580,7 +580,7 @@
               "inspect_failure_evidence",
               "evaluate_release_gate"
             ],
-            "latency_ms": 5,
+            "latency_ms": 2,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "**run-inv-main-0144: HOLD_MANUAL_REVIEW** (rule R6, release-policy-v3).\n\nObserved:\n- missing_ci_summary (rule R6): No CI summary event for this run."
@@ -613,7 +613,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 5
+          "elapsed_ms": 3
         }
       ]
     }

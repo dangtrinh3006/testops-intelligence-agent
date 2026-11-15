@@ -9,9 +9,9 @@ from app.etl import Dataset
 
 VERDICT_RE = re.compile(r"\b(SHIP_WITH_WARNINGS|HOLD_MANUAL_REVIEW|HOLD|BLOCK|SHIP)\b")
 # "cannot SHIP", "do not BLOCK": a negated verdict word is not a verdict claim.
-NEGATED_RE = re.compile(r"\b(?:cannot|can't|can not|not|never|don't|do not|no)\s+(?:be\s+)?(?:SHIP_WITH_WARNINGS|HOLD_MANUAL_REVIEW|HOLD|BLOCK|SHIP)\b", re.I)
+NEGATED_RE = re.compile(r"\b(?:cannot|can't|can not|not|never|don't|do not|no)\s+(?:be\s+)?(?:SHIP_WITH_WARNINGS|HOLD_MANUAL_REVIEW|HOLD|BLOCK|SHIP)\b", re.IGNORECASE)
 # Ids and dates contain digits that are not claims; strip them before checking numbers.
-ID_RE = re.compile(r"\b(?:run|att|rc|evt|DQ|T|R|ci|runner|artifacts)[-:][\w.:\-]+|\b\d{4}-\d{2}-\d{2}(?:[T ][\d:]+Z?)?|\b[0-9a-f]{7}\b|\bv?\d+\.\d+\.\d+\b", re.I)
+ID_RE = re.compile(r"\b(?:run|att|rc|evt|DQ|T|R|ci|runner|artifacts)[-:][\w.:\-]+|\b\d{4}-\d{2}-\d{2}(?:[T ][\d:]+Z?)?|\b[0-9a-f]{7}\b|\bv?\d+\.\d+\.\d+\b", re.IGNORECASE)
 NUM_RE = re.compile(r"(?<![\w.])\$?(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)%?")
 TRIVIAL = {"0", "1", "2", "3", "4", "100"}
 

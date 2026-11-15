@@ -3,7 +3,7 @@
 import pytest
 
 from app.domain import flaky, gate
-from app.tools import RunArgs, estimate_triage_cost, CostArgs, evaluate_release_gate
+from app.tools import CostArgs, RunArgs, estimate_triage_cost, evaluate_release_gate
 
 
 # ---- Scenario A: latest checkout run ----

@@ -6,7 +6,6 @@ import json
 import re
 import time
 import uuid
-from pathlib import Path
 
 from app.etl import Dataset
 from app.schemas import AskResponse, Claim, EvidenceRef, GateView, ToolCall, Validation

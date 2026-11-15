@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -37,8 +37,8 @@ def parse_ts(value: Any) -> Stamp:
         return Stamp(value, None, "missing")
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         if value >= EPOCH_MS_THRESHOLD:
-            return Stamp(value, datetime.fromtimestamp(value / 1000, tz=timezone.utc), "epoch-ms")
-        return Stamp(value, datetime.fromtimestamp(value, tz=timezone.utc), "epoch-s")
+            return Stamp(value, datetime.fromtimestamp(value / 1000, tz=UTC), "epoch-ms")
+        return Stamp(value, datetime.fromtimestamp(value, tz=UTC), "epoch-s")
     if isinstance(value, str):
         s = value.strip()
         try:
@@ -49,8 +49,8 @@ def parse_ts(value: Any) -> Stamp:
             return Stamp(value, None, "unparseable")
         if dt.tzinfo is None:
             # Source contract (artifact store): naive times are UTC. Recorded as an assumption, not a fact.
-            return Stamp(value, dt.replace(tzinfo=timezone.utc), "naive-assumed-utc")
-        return Stamp(value, dt.astimezone(timezone.utc), "iso-offset")
+            return Stamp(value, dt.replace(tzinfo=UTC), "naive-assumed-utc")
+        return Stamp(value, dt.astimezone(UTC), "iso-offset")
     return Stamp(value, None, "unparseable")
 
 

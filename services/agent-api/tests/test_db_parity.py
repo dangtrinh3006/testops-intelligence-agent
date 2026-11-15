@@ -42,6 +42,5 @@ def test_reader_role_cannot_write(db_dataset):
     import psycopg
 
     _, _, ro = db_dataset
-    with psycopg.connect(ro) as conn:
-        with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            conn.execute("DELETE FROM raw_events")
+    with psycopg.connect(ro) as conn, pytest.raises(psycopg.errors.InsufficientPrivilege):
+        conn.execute("DELETE FROM raw_events")

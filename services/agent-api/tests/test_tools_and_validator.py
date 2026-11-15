@@ -34,7 +34,7 @@ def test_latest_checkout_run_is_found_first(ds):
 
 def test_log_injection_is_flagged_as_untrusted(ds):
     out = run_tool(ds, "get_run_details", {"run_id": "run-chk-main-0418"})
-    flagged = [l for l in out["logs"] if l["possible_prompt_injection"]]
+    flagged = [row for row in out["logs"] if row["possible_prompt_injection"]]
     assert len(flagged) == 1 and "ignore all previous instructions" in flagged[0]["untrusted_text"].lower()
     assert "untrusted" in out["logs_note"]
 

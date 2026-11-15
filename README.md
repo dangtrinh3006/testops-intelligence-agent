@@ -15,7 +15,7 @@ Built as a proof of concept for a fictional prospect, *Kestrel Commerce*, on **e
 | | Question | What the agent must do | Result on the seeded data |
 |---|---|---|---|
 | A | *Why did the latest checkout pipeline fail, and should we block the release?* | Find the run, separate facts from hypotheses, apply the release policy | `run-chk-main-0418` → **BLOCK** (rule R2): `T-CHK-004` failed on both attempts with the same assertion; the infra retry on `T-CHK-011` is a warning, not the cause; a log line telling the AI to approve the release is flagged and ignored |
-| B | *Which tests appear flaky, and how much engineering time might they cost?* | Reproducible levels from attempt history, duplicates counted once, cost with explicit assumptions | `T-INV-005` **proven** (same commit, mixed final outcomes), `T-SUP-003`/`T-CHK-006` **suspected**, `T-CHK-011` **infra_only** (not flaky). 25 investigations → 8.3 engineer-hours at the *assumed* 20 min each |
+| B | *Which tests appear flaky, and how much engineering time might they cost?* | Reproducible levels from attempt history, duplicates counted once, cost with explicit assumptions | `T-INV-005` **proven** (same commit, mixed final outcomes), `T-SUP-003`/`T-CHK-006` **suspected**, `T-CHK-011` **infra_only** (not flaky). 25 triage investigations (14 test retry-passes, 8 infra retry-passes, 3 final failures) → 8.3 engineer-hours at the *assumed* 20 min each |
 | C | *The CI summary says PASS but raw data has failures. Can we ship?* | Detect the source conflict, distinguish a resolved retry from an unresolved one | `rc-pay-2.14.0` → **HOLD_MANUAL_REVIEW** (R5): CI summary `passed`, but `T-PAY-004` attempt 2 never reported. Same rule on the twin run `rc-pay-2.13.4` (retry resolved) → **SHIP_WITH_WARNINGS** |
 
 Free-form questions go through the same tools and validator.
@@ -24,19 +24,19 @@ Free-form questions go through the same tools and validator.
 
 ```mermaid
 flowchart LR
-    UI["Next.js console<br/>(Vercel)"] -->|/api/* rewrite| API["FastAPI<br/>(Vercel Python, sin1)"]
+    UI["Next.js console<br/>(Vercel)"] -->|/api/* route handler| API["FastAPI<br/>(Vercel Python, sin1)"]
     API --> G{{"LangGraph<br/>agent → tools → compose → validate → revise once"}}
     G --> T["8 bounded read-only tools"]
     T --> D["Deterministic domain<br/>ETL · release gate · flake levels · cost"]
     D --> K[("knowledge/testops_rules.yaml<br/>expert rules R1–R6")]
     D --> DB[("Neon PostgreSQL<br/>raw_events + normalised tables<br/>read-only role")]
-    G -.->|OpenAI-compatible| LLM["Gemini 3.5 Flash<br/>(fallback Flash-Lite)"]
+    G -.->|OpenAI-compatible| LLM["Gemini 3.5 Flash-Lite<br/>(fallback Flash)"]
 ```
 
 - **Raw evidence is immutable.** Three sources (CI server, test runner, artifact store) arrive in different formats; the ETL keeps the raw value next to the normalised one and records data-quality findings.
 - **Verdicts are not model output.** `evaluate_release_gate` is a pure function over the rule file; the model can only request and explain it.
-- **Every answer is validated** before it is shown: cited ids must exist and have been retrieved in this request, numbers must appear in tool output, and any verdict in the text must equal the policy result. One revision is allowed; remaining problems are shown, not hidden.
-- **Three honest modes**, always labelled in the UI: `live` (real model chooses tools), `replay` (a recorded live trace, evidence re-checked against current data) and `offline` (keyword planner + templates, no model).
+- **Every answer is validated** before it is shown: cited ids must exist and have been retrieved in this request, numbers must appear in tool output, and any verdict in the text (including plain-English "can ship") must equal the policy result for the run it names. One revision is allowed; remaining problems are shown, not hidden.
+- **Three honest modes**, always labelled in the UI: `live` (real model chooses tools), `replay` (a recorded live trace for scenarios A, B and C, evidence re-checked against current data) and `offline` (keyword planner + templates, no model).
 
 ## Data and the dirty-data catalogue
 
@@ -57,6 +57,7 @@ flowchart LR
 
 ```text
 .
+├── .github/workflows/ci.yml     lint, tests (with Postgres), offline evals, web build
 ├── apps/web/                    Next.js 16 console (TypeScript, Tailwind v4)
 ├── services/agent-api/
 │   ├── app/
@@ -85,7 +86,7 @@ git clone https://github.com/dangtrinh3006/testops-intelligence-agent.git
 cd testops-intelligence-agent/services/agent-api
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt pytest uvicorn
-python -m pytest -q                                     # domain, data quality, tools, validator, API, evals
+python -m pytest -q                                     # 44 passed, 2 skipped (DB tests need TEST_DATABASE_URL)
 python -m uvicorn app.main:app --port 8000              # fixtures + offline mode, no keys needed
 ```
 
@@ -95,7 +96,7 @@ npm install
 npm run dev                                             # http://localhost:3000, proxies /api to :8000
 ```
 
-Live model mode: put `LLM_API_KEY` (Gemini API key, or any OpenAI-compatible provider with `LLM_BASE_URL`) in `services/agent-api/.env.local` and export it before starting uvicorn. Without it the API answers in offline mode and says so.
+Live model mode: put `LLM_API_KEY` (Gemini API key, or any OpenAI-compatible provider with `LLM_BASE_URL`) in `services/agent-api/.env.local` (template: `.env.example`) and export it before starting uvicorn. Without it the API answers in offline mode and says so.
 
 Postgres (optional, same results as fixtures):
 
@@ -103,7 +104,7 @@ Postgres (optional, same results as fixtures):
 docker run -d --name testops-pg -e POSTGRES_PASSWORD=localdev -p 5440:5432 postgres:17-alpine
 export DATABASE_URL=postgresql://postgres:localdev@localhost:5440/postgres READONLY_PASSWORD=local-reader
 python -m app.seed                                      # idempotent; creates role testops_reader (SELECT only)
-TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # adds the DB parity + read-only role tests
+TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 46 passed: adds the DB parity + read-only role tests
 ```
 
 ## Environment variables (API)
@@ -112,32 +113,35 @@ TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # adds the DB parity + r
 |---|---|---|
 | `LLM_API_KEY` | for live mode | Model provider key (server-side only) |
 | `LLM_BASE_URL` | no | OpenAI-compatible endpoint; default Gemini |
-| `LLM_MODEL` / `LLM_FALLBACK_MODEL` | no | Default `gemini-3.5-flash` / `gemini-3.5-flash-lite` |
+| `LLM_MODEL` / `LLM_FALLBACK_MODEL` | no | Default `gemini-3.5-flash-lite` / `gemini-3.5-flash` |
 | `TESTOPS_DATA_SOURCE` | no | `fixtures` (default without DB) or `db` |
 | `DATABASE_URL_READONLY` | for `db` | Read-only role used by the API |
 | `DATABASE_URL` + `READONLY_PASSWORD` | seed only | Privileged connection for `python -m app.seed` |
-| `RATE_LIMIT_PER_MINUTE` / `LIVE_DAILY_CAP` | no | Abuse protection on the public demo (6/min/IP, 150 live answers/day/instance) |
+| `RATE_LIMIT_PER_MINUTE` / `LIVE_DAILY_CAP` | no | Abuse protection on the public demo (6/min/IP, 150 live answers/day), in memory per serverless instance |
 
-Web: `AGENT_API_URL` (where `/api/*` is proxied; default `http://localhost:8000`).
+Web: `AGENT_API_URL` (read at runtime by the route handler `apps/web/app/api/[...path]/route.ts` that proxies `/api/*`, 120 s max; default `http://localhost:8000`).
 
 ## Checks
 
 | Check | Command |
 |---|---|
-| Backend tests | `cd services/agent-api && python -m pytest -q` |
+| Backend lint and tests | `cd services/agent-api && ruff check app tests && python -m pytest -q` |
 | Agent evals, offline (also part of the tests) | `python -m app.evals` |
 | Agent evals, live model (costs quota) | `python -m app.evals --live --pause 20 --replays` |
+| Agent evals, live stability (each case N times) | `python -m app.evals --live --pause 20 --repeat 3` |
 | Web | `cd apps/web && npm run typecheck && npm run lint && npm run build` |
-| Deployed smoke test | `python scripts/smoke.py https://testops.dangtrinh.dev` |
+| Deployed smoke test | `python scripts/smoke.py https://testops.dangtrinh.dev` (add `--live` for one live answer) |
 
-There is no CI pipeline in this repository yet; the commands above are what was run.
+CI: `.github/workflows/ci.yml` runs on every push to `main` and on pull requests: ruff, pytest with a Postgres service (all 46 tests, including DB parity), the offline eval report; web typecheck, lint and build.
+
+Agent evals: 10 cases (golden, adversarial, robustness). History in `services/agent-api/data/evals/HISTORY.md`: live run 1 scored 7/10 (2 validator false positives, 1 real prompt gap), run 2 10/10 after fixes (median 14.0 s). After the red-team review tightened the validator, three single runs scored 8/10, 9/10 and 8/10 with different cases failing: agent nondeterminism. The harness now takes `--repeat N` and classifies each case stable, flaky or failing, the same way the product classifies tests. The 3× stability run (`data/evals/latest.json`, `gemini-3.5-flash-lite`): 7/10 cases passed every run, 26/30 runs passed (run pass rate 0.867), 7 stable, 3 flaky, 0 failing, median 13.7 s; the policy verdict was correct in all 30 runs.
 
 ## Limitations (honest list)
 
 - Synthetic data only; no real CI integration. Root causes are hypotheses: commit diffs and application logs are not in the dataset.
 - At PoC scale the API loads the raw log (about 2k rows) and normalises in process; the normalised tables exist in Postgres for inspection and for the pilot-scale query path.
-- Live mode uses the Gemini free tier: 15–50 s per question and occasional rate limits, mitigated by a fallback model, then replay/offline. Not an SLA.
-- Rate limiting is per serverless instance, not global.
+- Live mode uses the Gemini free tier. Measured during development: 8.0 s end-to-end through the public site (scenario A), live eval medians 9.4–14.0 s per case, single cases up to about 25 s; occasional rate limits, mitigated by a fallback model, then replay/offline. Not an SLA.
+- The per-IP and daily limits are in memory per serverless instance and reset on a cold start; the hard spending cap today is Google's free-tier quota. In a pilot the cap sits at a gateway or a shared counter.
 - Cost figures are illustrative assumptions, never measured company data.
 
 ## Author

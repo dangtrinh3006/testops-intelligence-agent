@@ -1,6 +1,6 @@
 # Technical deep dive
 
-Describes what is in the repository on 16 Nov 2026 (`services/agent-api`). Where a component is planned but not present, it is marked `{{planned}}`. All numbers were produced by running the tools offline on the committed fixtures.
+Describes what is in the repository on 16 Nov 2026 (`services/agent-api`). Where a component is planned but not present, the text says so. Domain numbers were produced by running the tools offline on the committed fixtures; latency and eval numbers name the run they come from.
 
 ## 1. Architecture
 
@@ -24,8 +24,8 @@ flowchart LR
   end
   TOOLS --> TL
   VA --> API["FastAPI /api/ask<br/>mode live · replay · offline"]
-  API --> UI["Next.js UI (apps/web, in progress)<br/>verdict · evidence inspector · mode badge"]
-  LLM["Any OpenAI-compatible endpoint<br/>Gemini 3.5 Flash, fallback Flash-Lite"] -.explains, never decides.-> AG
+  API --> UI["Next.js console (apps/web, Vercel)<br/>/api/* via route handler · verdict · evidence inspector · mode badge"]
+  LLM["Any OpenAI-compatible endpoint<br/>Gemini 3.5 Flash-Lite, fallback Flash"] -.explains, never decides.-> AG
 ```
 
 The model has two jobs: choose which tools to call, and write the explanation. Counting, deduplication, normalisation, flake levels, effort arithmetic and the release verdict are Python functions with their own tests. The verdict in the response is copied from `evaluate_release_gate`; the model has no field it can write it into.
@@ -71,7 +71,7 @@ Every tool returns an `evidence` list of record ids it relied on. `Dataset.recor
 
 ## 4. Source-of-truth policy
 
-`catalog.release_policy.source_of_truth`: runner attempt results (final attempt per test) > CI summary webhook (advisory) > artifact logs (context, never decisive). Implemented in `domain/gate.py::evaluate`: the summary is compared against the final attempt of every test outside `ALLOW_FAILURE_SUITES = {"eval"}` (the CI config marks scored LLM evals allow-failure, so the summary never covered them). A summary contradicted by its attempts invalidates the summary, never the attempts. A gating test with no terminal attempt makes the gate unverifiable: HOLD_MANUAL_REVIEW, a different verdict from BLOCK.
+`catalog.release_policy.source_of_truth`: runner attempt results (final attempt per test) > CI summary webhook (advisory) > artifact logs (context, never decisive). Implemented in `domain/gate.py::evaluate`: the summary is compared only against the final attempts of gating (`critical`) tests, the only ones that can change a verdict. Non-gating suites never change a verdict through the summary: `run-chk-e2e-0070`, whose non-gating T-CHK-005 never reported, is SHIP (`tests/test_redteam_regressions.py`). A summary contradicted by its attempts invalidates the summary, never the attempts. A gating test with no terminal attempt makes the gate unverifiable: HOLD_MANUAL_REVIEW, a different verdict from BLOCK.
 
 The reverse conflict (summary FAIL, every covered test passed) is detected in the same function; the dataset has no such run today.
 
@@ -80,12 +80,14 @@ The reverse conflict (summary FAIL, every covered test passed) is detected in th
 `knowledge/testops_rules.yaml`, version `2026.11.0`, owner "QA Platform (customer-owned in a pilot)". Served read-only at `GET /api/knowledge`.
 
 - `taxonomy`: error class → category. INFRA (`SessionProvisioningTimeout`, `DeviceAllocationFailed`, `TunnelDisconnected`, `RunnerOOMKilled`, `ArtifactUploadFailed`, `ConcurrencyQuotaExceeded`), EXTERNAL_DEPENDENCY (`ConnectionResetError`, `UpstreamTimeout`, `SandboxUnavailable`), PRODUCT_ASSERTION, TIMING, MODEL_QUALITY, TEST_CODE. Unknown classes map to `UNCLASSIFIED`.
-- `rules` R1–R6, each with `title`, `rationale`, `effect`: R1 infra is not flakiness; R2 final status is the last terminal attempt; R3 three levels of flakiness evidence; R4 quarantine is a human act with an expiry; R5 source-of-truth precedence; R6 missing data is reported, never imputed.
+- `rules` R1–R6, each with `title`, `rationale`, `effect`: R1 infra is not flakiness; R2 a test's outcome is the status of its last attempt, and INCOMPLETE if that attempt never reported (see R5); R3 three levels of flakiness evidence; R4 quarantine is a human act with an expiry; R5 source-of-truth precedence; R6 missing data is reported, never imputed.
 - `release_gate.precedence`, first match wins: `unresolved_failure` → BLOCK (R2); `incomplete_gating_test` → HOLD (R5); `summary_conflict` → HOLD (R5); `missing_ci_summary` → HOLD (R6); `retry_pass_in_gating` → SHIP_WITH_WARNINGS (R2); otherwise SHIP.
 - `quarantine`: T-SUP-003 (CX AI team, expires 2026-11-30, active), T-CHK-011 (Storefront team, expired 2026-11-01).
 - `effort_assumptions`: minutes per investigation 10/20/35, loaded USD per hour 40/60/90.
 
 The gate code reads the precedence list; changing the policy is a YAML edit, and `rules_version` is returned with every verdict.
+
+Flake levels (`domain/flaky.py`) apply R1 to final attempts too: a final failure whose category is INFRA or EXTERNAL_DEPENDENCY is not counted as a test failure, and a real final failure outranks infra retries when the level is chosen.
 
 ## 6. The LangGraph loop and why it exists
 
@@ -94,9 +96,9 @@ The gate code reads the precedence list; changing the policy is a YAML edit, and
 - `agent`: one chat call with the 8 tool specs, `tool_choice="auto"`, temperature 0.
 - `tools`: executes each requested call through `run_tool`; argument errors come back as `{"error": ..., "hint": ...}` so the model can correct itself; `MAX_TOOL_CALLS = 8`; tool payloads over `MAX_TOOL_CHARS = 9000` are truncated with a hint to use `get_record`. Every `evaluate_release_gate` result is stored in `state.gates`.
 - `compose`: forces the `submit_answer` function (`tool_choice="required"`) whose schema is `Draft` (answer, recommended next action, 3–6 claims with evidence ids, assumptions, uncertainty). The computed verdicts are appended to the instruction so the model states them exactly. If the model answers in prose, the prose is kept and the validator flags it.
-- `validate`: deterministic (section 7). On failure the problems are fed back and `compose` runs once more (`revisions <= 1`); after that the response ships with `validation.passed = false` and the flagged claims marked `supported: false`.
+- `validate`: deterministic (section 7). On failure the problems are fed back and `compose` runs once more (at most one revision; the `revisions` field reports revisions performed); after that the response ships with `validation.passed = false` and the flagged claims marked `supported: false`.
 
-Why a graph rather than a single tool-calling call: two loops a single prompt cannot give. The model may keep fetching evidence until it has enough (Scenario A took 4 calls, Scenario C 3, measured during development), and a deterministic checker can send the draft back with the exact defects. A straight line would be decoration; the graph is here for those two edges. Mapping to Observe–Orient–Decide–Act: tools observe, the rule file orients, `gate.evaluate` decides, the human acts.
+Why a graph rather than a single tool-calling call: two loops a single prompt cannot give. The model may keep fetching evidence until it has enough (in the recorded live traces Scenario A took 4 calls, Scenario C 2), and a deterministic checker can send the draft back with the exact defects. A straight line would be decoration; the graph is here for those two edges. Mapping to Observe–Orient–Decide–Act: tools observe, the rule file orients, `gate.evaluate` decides, the human acts.
 
 ## 7. Validator checks
 
@@ -105,10 +107,10 @@ Why a graph rather than a single tool-calling call: two loops a single prompt ca
 1. `evidence_ids_resolve`: every cited id exists in the dataset (`record_exists`); unknown ids mark the claim `supported: false`.
 2. `evidence_retrieved_this_request`: every cited id was returned in some tool's `evidence` list in this request (no citing from memory).
 3. `claims_have_evidence`: no claim without ids.
-4. `verdict_matches_policy`: any SHIP / SHIP_WITH_WARNINGS / HOLD / HOLD_MANUAL_REVIEW / BLOCK in the text must be one `evaluate_release_gate` produced this request.
-5. `numbers_grounded`: every number in the answer (ids, dates, commit hashes and versions stripped first; 0–4 and 100 ignored) appears in the tool output, including rounded forms.
+4. `verdict_matches_policy`, per sentence and per run: a verdict next to a run or RC id must equal that run's policy verdict; otherwise it must be one the policy produced this request. Plain English "can ship", "safe to ship", "approve the release" counts as SHIP; negations ("cannot confirm that we can SHIP"), reported speech ("an instruction to approve the release") and quoted text are ignored.
+5. `numbers_grounded`: every number in the answer (ids, dates, commit hashes and versions stripped first; 0–4 ignored) appears in the tool output, including rounded forms. It is lexical: it catches invented statistics, not wrong arithmetic.
 
-`tests/test_tools_and_validator.py::test_validator_rejects_invented_ids_numbers_and_verdicts` feeds "We can SHIP: 93% of tests passed and it saves 412 hours" with a fake id and asserts exactly checks 1, 3, 4, 5 fail. Known weakness: check 5 is lexical; a correct number used in a wrong sentence passes. That is why the engineer accepts or overrides every item in the pilot.
+`tests/test_tools_and_validator.py::test_validator_rejects_invented_ids_numbers_and_verdicts` feeds "We can SHIP: 93% of tests passed and it saves 412 hours" with a fake id and asserts exactly checks 1, 3, 4, 5 fail. `tests/test_redteam_regressions.py` adds lowercase "you can ship", a SHIP claim on the wrong run, an invented percentage, and quoted injection text. Known weakness: check 5 is lexical; a correct number used in a wrong sentence passes. That is why the engineer accepts or overrides every item in the pilot.
 
 ## 8. Three honest modes
 
@@ -117,10 +119,10 @@ Why a graph rather than a single tool-calling call: two loops a single prompt ca
 | Mode | What answers | Label in response |
 |---|---|---|
 | `live` | the graph with the configured model; on any model error the fallback model; if both fail, offline | `mode: live`, `model: <name>`, `notice` names a fallback if used |
-| `replay` | `services/agent-api/data/replays/scenario-<X>.json`, a live response recorded by `python -m app.evals --live`; `evidence[].exists` re-checked against today's data; falls to offline if the file is missing | `mode: replay`, notice "Replayed trace recorded from a live <model> run (request <id>)" |
+| `replay` | `services/agent-api/data/replays/scenario-<X>.json` (A, B, C), live responses recorded from passing live eval runs (`python -m app.evals --live --replays`); `evidence[].exists` re-checked against today's data; falls to offline if the file is missing | `mode: replay`, notice "Replayed trace recorded from a live <model> run (request <id>)" |
 | `offline` | keyword planner + templates over the same tools, no model | `mode: offline`, notice "Offline deterministic mode: keyword planner and templates, no language model." |
 
-No credentials configured → `live` degrades to `offline` with the notice "No model credentials configured". `tests/test_tools_and_validator.py::test_offline_mode_answers_all_presets_with_valid_evidence` asserts that degradation and that all evidence resolves. Replay files are `{{to record before the meeting}}`; the directory exists and is empty on 16 Nov.
+No credentials configured → `live` degrades to `offline` with the notice "No model credentials configured". `tests/test_tools_and_validator.py::test_offline_mode_answers_all_presets_with_valid_evidence` asserts that degradation and that all evidence resolves. The offline planner honours run and RC ids named in the question (`test_offline_planner_uses_the_run_id_named_in_the_question`).
 
 ## 9. Safety
 
@@ -128,27 +130,34 @@ No credentials configured → `live` degrades to `offline` with the notice "No m
 - Bounded tools: pydantic argument models (`limit <= 20`, `lookback_days 1..30`, `minutes <= 240`, `usd_per_hour <= 500`, `record_id <= 120 chars`); unknown tool names and unknown services/runs return typed errors with hints.
 - No text-to-SQL: the model never sees SQL; the Postgres path runs two fixed queries with `LIMIT 50000`, `connect_timeout=10` and `SET LOCAL statement_timeout = '8s'` issued after connect (Neon's pooler rejects startup options), under `DATABASE_URL_READONLY` (role `testops_reader`, SELECT only; `tests/test_db_parity.py::test_reader_role_cannot_write`, runs only with `TEST_DATABASE_URL`).
 - Untrusted logs: tools return log text as `untrusted_text` with `logs_note`; `INJECTION_PATTERN` flags "ignore previous instructions", "approve the release", "AI-assistant note", "system prompt"; the system prompt says to quote, not follow. The regex is a tripwire, not the defence; the defence is that the verdict field is not model-writable and the validator rejects stray verdicts.
-- Rate limits (`app/main.py`): 6 live questions per minute per IP (`RATE_LIMIT_PER_MINUTE`), 150 live calls per day per instance (`LIVE_DAILY_CAP`); replay and offline unaffected. Per-request `x-request-id`, JSON logs with mode, tools, verdict, validation and latency; exceptions return `{"error": "internal_error", "request_id"}` without details.
-- Secrets: model key and database URLs are server-side env vars (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_FALLBACK_MODEL`, `LLM_TIMEOUT_SECONDS`, `DATABASE_URL`, `DATABASE_URL_READONLY`, `TESTOPS_DATA_SOURCE`); `.env*` is git-ignored except `.env.example` (present for `apps/web`; the API's `{{planned}}`). Database errors are surfaced by exception type and HTTP status only, never with the URL.
+- Rate limits (`app/main.py`): 6 live questions per minute per IP (`RATE_LIMIT_PER_MINUTE`), 150 live calls per day (`LIVE_DAILY_CAP`); replay and offline unaffected. Both counters are in memory per serverless instance and reset on a cold start; the hard spending cap today is Google's free-tier quota. In a pilot the cap sits at a gateway or a shared counter. Per-request `x-request-id`, JSON logs with mode, tools, verdict, validation and latency; exceptions return `{"error": "internal_error", "request_id"}` without details.
+- Secrets: model key and database URLs are server-side env vars (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_FALLBACK_MODEL`, `LLM_TIMEOUT_SECONDS`, `DATABASE_URL`, `DATABASE_URL_READONLY`, `TESTOPS_DATA_SOURCE`); `.env*` is git-ignored except `.env.example` (tracked for both `apps/web` and `services/agent-api`). Database errors are surfaced by exception type and HTTP status only, never with the URL.
 
 ## 10. The Gemini `thought_signature` bug (found and fixed during development)
 
-Symptom: with a generic OpenAI-style wrapper, the second turn after a tool call was rejected by Gemini's OpenAI-compatible endpoint. Cause: Gemini 3 attaches a `thought_signature` under `extra_content` to each tool call and requires it to be echoed back; wrappers that re-serialise messages into their own types drop unknown fields. Fix: `app/agent/client.py` (53 lines, httpx) keeps the assistant message exactly as returned and appends it to the history verbatim; one retry with a 4 s backoff on HTTP 429, then `ModelError` so the service can fail over to the fallback model. The fallback path was exercised once during development. The FDE point: the agent logic did not change; the integration surface did, and the fix is isolated in one file.
+Symptom: with a generic OpenAI-style wrapper, the second turn after a tool call was rejected by Gemini's OpenAI-compatible endpoint. Cause: Gemini 3 attaches a `thought_signature` under `extra_content` to each tool call and requires it to be echoed back; wrappers that re-serialise messages into their own types drop unknown fields. Fix: `app/agent/client.py` (53 lines, httpx) keeps the assistant message exactly as returned and appends it to the history verbatim; one retry with a 4 s backoff on HTTP 429, then `ModelError` so the service can fail over to the fallback model. The fallback path ran during the first live eval, when the then-primary Flash hit free-tier 429/503 on most cases; that is why Flash-Lite is now primary. The FDE point: the agent logic did not change; the integration surface did, and the fix is isolated in one file.
 
 ## 11. Testing strategy
 
-34 tests in 6 files. Measured 16 Nov 2026 with `TESTOPS_DATA_SOURCE=fixtures`: 32 passed, 2 skipped (DB parity, no `TEST_DATABASE_URL`), 2.8 s. No model is called in the suite (`conftest.py` removes `LLM_API_KEY` unless `TESTOPS_KEEP_LLM=1`).
+46 tests in 7 files: 44 run without a database, 2 Postgres parity and read-only-role tests run when `TEST_DATABASE_URL` is set. Measured 16 Nov without a database: 44 passed, 2 skipped, 3.6 s. CI (`.github/workflows/ci.yml`, every push) provides a Postgres service, so all 46 run there, after `ruff check` (clean). No model is called in the suite (`conftest.py` removes `LLM_API_KEY` unless `TESTOPS_KEEP_LLM=1`).
 
 | File | Tests | Covers |
 |---|---|---|
 | `test_golden_scenarios.py` | 12 | A: BLOCK/R2 with exact evidence ids, infra retry as warning, expired quarantine; previous run SHIP. C: HOLD/R5 with both triggers and ids; twin run SHIP_WITH_WARNINGS; rc id resolves; missing summary HOLD/R6. B: exact level map for 6 tests; retry-pass never "proven" without same-commit evidence; T-CHK-011 (0, 7) after dedup; incomplete excluded; effort estimate deterministic with assumptions and override; every gate evidence id resolves for all 120 runs |
 | `test_data_quality.py` | 6 | missing `finished_at` → no duration; five timestamp formats → one UTC instant, raw preserved, unparseable detected; duplicates counted once with both ingest ids traceable; incomplete attempt and missing summary reported; vocabulary normalised with raw kept; generator SHA-256 equals committed fixtures |
-| `test_tools_and_validator.py` | 8 | unknown run/service → typed error with hint; argument bounds and unknown tool; "latest" resolves to `run-chk-main-0418`; injection line flagged; every tool's evidence resolves; validator accepts grounded, rejects invented ids/numbers/verdicts; offline degradation for all presets |
-| `test_api.py` | 5 | health and overview verdicts; 422 on short/long question and bad mode; offline `/api/ask` returns structured answer with `x-request-id`; records and 404s; read-only route surface |
+| `test_tools_and_validator.py` | 9 | unknown run/service → typed error with hint; argument bounds and unknown tool; "latest" resolves to `run-chk-main-0418`; injection line flagged; every tool's evidence resolves; validator accepts grounded, rejects invented ids/numbers/verdicts, ignores negated verdicts; offline degradation for all presets |
+| `test_api.py` | 7 | health and overview verdicts; 422 on short/long question and bad mode; offline `/api/ask` returns structured answer with `x-request-id`; records and 404s; raw event and pipeline ids resolve; replay without a recording says so; read-only route surface |
+| `test_redteam_regressions.py` | 9 | one test per review finding: offline planner honours a named run id; plain-English and wrong-run SHIP claims; invented percentage; non-gating suite cannot change a verdict; unparseable queue time; cost split; quoted injection text, reported speech ("an instruction to approve the release") and long negations are not verdict claims |
 | `test_db_parity.py` | 2 | Postgres path yields identical verdicts and flake levels; seed is idempotent; reader role cannot DELETE (skipped without a database) |
 | `test_agent_evals.py` | 1 | the offline eval suite below passes every case |
 
-Agent eval harness, `app/evals.py`: each case states what must be true of the answer (policy verdict, cited ids, required tools, forbidden phrases, validator pass), so a prompt or model change that breaks behaviour fails like a regression. 10 cases in 3 suites, offline report `data/evals/offline.json` (16 Nov, 10/10, median 44 ms): golden `A-triage`, `B-flaky-cost`, `C-conflict`, `C-twin`; adversarial `ADV-pressure-ship`, `ADV-log-injection`, `ADV-write-request`; robustness `ROB-unknown-service`, `ROB-infra-not-flaky`, `ROB-missing-summary`. `python -m app.evals --live` runs the same cases against the real model and records the replay traces. Not yet done: a live run of the suite with its report `{{to run before the meeting}}`; `GET /api/evals` reads `data/evals/latest.json`, which the offline run does not write yet; `scripts/generate_data.py` named in a test message `{{planned}}`; UI tests `{{planned}}`.
+Agent eval harness, `app/evals.py`: each case states what must be true of the answer (policy verdict, cited ids, required tools, forbidden phrases, validator pass), so a prompt or model change that breaks behaviour fails like a regression. 10 cases in 3 suites, offline report `data/evals/offline.json` (10/10, every case stable): golden `A-triage`, `B-flaky-cost`, `C-conflict`, `C-twin`; adversarial `ADV-pressure-ship`, `ADV-log-injection`, `ADV-write-request`; robustness `ROB-unknown-service`, `ROB-infra-not-flaky`, `ROB-missing-summary`. `python -m app.evals --live` runs the same cases against the real model, writes `data/evals/latest.json` (served by `GET /api/evals` and the Agent evals page) and, with `--replays`, records the replay traces. `--repeat N` runs each case N times and classifies it stable, flaky or failing, the way the product classifies tests.
+
+Live history (`data/evals/HISTORY.md`): run 1 scored 7/10 (2 validator false positives, 1 real prompt gap: the agent did not say it is read-only); after fixes run 2 scored 10/10, median 14.0 s, and the A/B/C replays come from passing live runs. After the red-team review tightened the validator, three single runs scored 8/10, 9/10 and 8/10 with different cases failing each time: agent nondeterminism, not one broken case. Hence `--repeat`. The 3× stability run (`data/evals/latest.json`, `gemini-3.5-flash-lite`, 30 runs): 7/10 cases passed every run, 26/30 runs passed (run pass rate 0.867), 7 stable, 3 flaky, 0 failing, median 13.7 s. The policy verdict was correct in all 30 runs. Flaky: `A-triage` (validator false positive on reported speech, since fixed with a test), `ROB-infra-not-flaky` (model cited a tool name as an evidence id; caught), `B-flaky-cost` (key test ids omitted). The two real model behaviours stay visible as flaky cases rather than being tuned away. Not yet done: `scripts/generate_data.py`, named in a test message, does not exist yet (the generator is `app/synthetic/generate.py::write`); UI tests are planned.
+
+### What review found
+
+Before submission an internal adversarial (red-team) review of code and docs found, and we fixed: an offline answer about the wrong run (`run-inv-main-0157` for a question about `run-inv-main-0144`); validator holes (lowercase "can ship", a verdict borrowed from another run, 100 whitelisted as a trivial number); R2 wording in the rule file that did not match the code; the summary-conflict scope; flake-level ordering; the cost label (25 is triage work, not flakiness); a crash on an unparseable queue time; the API `.env.example` not tracked. Each code fix has a test in `tests/test_redteam_regressions.py`.
 
 ## 12. Scaling path to real CI integrations
 
@@ -162,14 +171,15 @@ Today the whole log (2,053 events) is rebuilt in memory from fixtures or from `r
 
 What does not change: the rule file, the tool contracts, the validator, the response schema.
 
-Deployment as configured on 16 Nov: the API runs as one Vercel Python function (`api/index.py` exports the FastAPI app; `vercel.json` routes every path to it, region `sin1`, `maxDuration` 120 s, bundle includes `app`, `knowledge`, `data`, `migrations`; `requirements.txt` pins the versions above; `.vercelignore` excludes tests and env files). Data source on Vercel is Neon via `DATABASE_URL_READONLY`, seeded with `python -m app.seed`. The UI is a separate Next.js app (`apps/web`). Public URL `{{LIVE_DEMO_URL}}`: verify with `GET /api/health` before the meeting; do not claim it works from the config alone.
+Deployment as configured on 16 Nov: the API runs as one Vercel Python function (`api/index.py` exports the FastAPI app; `vercel.json` routes every path to it, region `sin1`, `maxDuration` 120 s, bundle includes `app`, `knowledge`, `data`, `migrations`; `requirements.txt` pins the versions above; `.vercelignore` excludes tests and env files). Data source on Vercel is Neon PostgreSQL (Vercel Marketplace, `sin1`) via `DATABASE_URL_READONLY` (role `testops_reader`, SELECT only), seeded with the idempotent `python -m app.seed`. API: https://testops-agent-api.vercel.app (`/api/health`). The UI is a separate Next.js app on Vercel (`apps/web`) at https://testops.dangtrinh.dev; the route handler `apps/web/app/api/[...path]/route.ts` proxies `/api/*` to the API, reading the upstream URL at runtime, 120 s max. Measured 16 Nov: scenario A answered live end-to-end through the public site in 8.0 s. Re-check with `python scripts/smoke.py https://testops.dangtrinh.dev --live` before the meeting.
 
 ## 13. Known limitations
 
 - Synthetic data; the generator encodes the anomalies deliberately. Real feeds will have anomalies not in the taxonomy; those map to `UNCLASSIFIED` and are visible.
 - `numbers_grounded` is lexical, not semantic.
-- "Latest" is resolved by `find_pipeline_runs` ordering by `queued_utc`; a run with an unparseable `queued_at` would sort last.
-- Live latency on a free tier was 18–48 s per question during development; a paid tier or a smaller model changes this; no SLA is claimed.
+- "Latest" is resolved by `find_pipeline_runs` ordering by `queued_utc`; a run with an unparseable `queued_at` sorts last (tested; it used to crash the listing).
+- Live latency on the free tier, measured during development: 8.0 s end-to-end for scenario A, live eval medians 9.4–14.0 s per case, single cases up to about 25 s; a paid tier or another model changes this; no SLA is claimed.
+- Agent answers vary between runs (8/10, 9/10, 8/10 on single live eval runs, different cases failing); measured with `--repeat`, not hidden.
 - `R6 staleness` for runs past the pipeline timeout with no terminal status is in the rule rationale but not implemented as a gate check; such a run surfaces as `incomplete_gating_test` instead.
-- Single process rate limiting (per instance), no shared store.
-- UI scaffold (`apps/web`: `Header`, `Evidence`, `Inspector`, `Attempts`, `Markdown` components, API client and types) is in progress and uncommitted on 16 Nov; no README, no API `.env.example`, no replay files yet `{{planned}}`; deployment config present, public URL unverified.
+- Rate limits and the daily cap are in memory per serverless instance and reset on a cold start; the hard spending cap today is the free-tier quota. A pilot needs a gateway or shared counter.
+- The UI (`apps/web`) has no automated UI tests; CI runs its typecheck, lint and build only.

@@ -35,7 +35,7 @@ Exit: if the acceptance rate is under 50% at the end of W3 with the rule file al
 | Driver | What drives it | Bounded by |
 |---|---|---|
 | Integration engineering | the CI API's quirks: pagination, redelivery, attempt granularity, artifact access; this dominates | one source, one service; the ETL and schema exist |
-| Inference | per question: <= 8 tool calls, `max_tokens` 2000 per agent turn and 2500 for the answer, temperature 0, one revision at most; per day: `LIVE_DAILY_CAP` | tokens per request are accumulated in the graph; price = tokens × the chosen model's list price; the customer picks the model |
+| Inference | per question: <= 8 tool calls, `max_tokens` 2000 per agent turn and 2500 for the answer, temperature 0, one revision at most; per day: `LIVE_DAILY_CAP` (in memory per instance today; a gateway or shared counter in a pilot) | tokens per request are accumulated in the graph; price = tokens × the chosen model's list price; the customer picks the model |
 | Hosting and database | one Python service, one Postgres (Neon or customer's); PoC data is 2,053 rows | small until ingestion is continuous |
 | Security review | read-only role, no model-written SQL, logs as untrusted data, endpoint choice | start in W1, not W4; the architecture doc is written for the reviewer |
 | Rule maintenance | the QA lead's time editing YAML weekly in the pilot | the file is the customer's; no vendor needed to change a rule |
@@ -49,7 +49,7 @@ monthly_engineer_hours_saved = investigations_per_month × minutes_saved_per_inv
 monthly_value_usd            = monthly_engineer_hours_saved × loaded_rate_usd_per_hour   (rate typed in by the customer)
 ```
 
-`investigations_per_month` is measured (the dataset's own tool counts 25 in 30 days: retry-pass series plus final-failure series). `minutes_saved` is baseline minus assisted, measured in W1 and W4. `loaded_rate` is the customer's.
+`investigations_per_month` is measured (the dataset's own tool counts 25 triage investigations in 30 days: 14 test retry-passes, 8 infra retry-passes, 3 final failures; not all of them are flakiness). `minutes_saved` is baseline minus assisted, measured in W1 and W4. `loaded_rate` is the customer's.
 
 Illustrative sensitivity, hours per month, computed from the formula:
 
@@ -59,7 +59,7 @@ Illustrative sensitivity, hours per month, computed from the formula:
 | **10 min saved each** | 4.2 h | 16.7 h | 41.7 h |
 | **20 min saved each** | 8.3 h | 33.3 h | 83.3 h |
 
-At the rule file's base assumption of $60 per hour the middle cell is 16.7 h, about $1,000 a month; at the dataset's own scale (25 investigations, base 20 min each) total triage is only 8.3 h a month, so hours saved cannot exceed that. The honest reading: for a team this size the pilot pays in release-decision quality and in data-quality findings, not in headcount. The formula is in the product (`estimate_triage_cost`, low/base/high) so the customer can change every input.
+At the rule file's base assumption of $60 per hour the middle cell is 16.7 h, about $1,000 a month; at the dataset's own scale (25 triage investigations, base 20 min each) total triage is only 8.3 h a month, so hours saved cannot exceed that. The honest reading: for a team this size the pilot pays in release-decision quality and in data-quality findings, not in headcount. The formula is in the product (`estimate_triage_cost`, low/base/high) so the customer can change every input.
 
 What the ROI line does not capture and the pilot should log anyway: releases held that would otherwise have shipped on a wrong PASS; infra incidents found through `infra_only` retries; time not spent arguing about which dashboard is right.
 

@@ -20,12 +20,13 @@
   .box { border: 1px solid #c8c8c8; padding: 5px 7px; margin-top: 2px; }
   .box h3 { font-family: Arial, Helvetica, sans-serif; font-size: 8.8pt; margin: 0 0 2px 0; }
   .small { font-size: 8.8pt; }
+  .meta a { color: inherit; text-decoration: none; white-space: nowrap; }
 </style>
 </head>
 <body>
 <div class="page">
   <h1>TestOps Intelligence Agent — Prospect Brief</h1>
-  <div class="meta">Trinh Nguyen (Martin), AITOMATIC Round 3, 17 Nov 2026 · Proof of concept on synthetic data · Repo: {{GITHUB_URL}} · Demo: {{LIVE_DEMO_URL}}</div>
+  <div class="meta">Trinh Nguyen (Martin), AITOMATIC Round 3, 17 Nov 2026 · Proof of concept on synthetic data · Repo: <a href="https://github.com/dangtrinh3006/testops-intelligence-agent">github.com/dangtrinh3006/testops-intelligence-agent</a> · Demo: <a href="https://testops.dangtrinh.dev">testops.dangtrinh.dev</a></div>
 
   <h2>Prospect</h2>
   <p><strong>Kestrel Commerce</strong> (fictional). Mid-sized B2B commerce SaaS: 4 services (<code>checkout-web</code>, <code>payments-api</code>, <code>inventory-svc</code>, <code>support-assistant</code> with scored LLM evals), 6 CI pipelines, 120 runs and 892 test attempts in the 30 days to 2026-11-13. A release manager approves releases from the CI status page.</p>
@@ -67,7 +68,7 @@
     </div>
     <div>
       <h2>Limitations</h2>
-      <p class="small">Synthetic data, one tenant, no SSO. Live model latency measured during development at 18–48 s per question on a free tier; not an SLA. "Proven" flakiness needs same-commit reruns; root causes are hypotheses because diffs are not in the data. The rule file is hand-authored. Replay traces and the public demo URL are being finalised before the meeting.</p>
+      <p class="small">Synthetic data, one tenant, no SSO. Live latency measured during development on a free tier: 8 s end-to-end for scenario A, 9–14 s median per eval case; not an SLA. Agent wording varies between runs; the eval harness measures it. "Proven" flakiness needs same-commit reruns; root causes are hypotheses because diffs are not in the data. The rule file is hand-authored.</p>
     </div>
   </div>
 </div>

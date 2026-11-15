@@ -1,6 +1,6 @@
 # TestOps Intelligence Agent — Prospect Brief
 
-Trinh Nguyen (Martin), AITOMATIC Round 3, 17 Nov 2026. Proof of concept on synthetic data. Repo: {{GITHUB_URL}} · Demo: {{LIVE_DEMO_URL}}
+Trinh Nguyen (Martin), AITOMATIC Round 3, 17 Nov 2026. Proof of concept on synthetic data. Repo: https://github.com/dangtrinh3006/testops-intelligence-agent · Demo: https://testops.dangtrinh.dev
 
 ## Prospect
 
@@ -38,4 +38,4 @@ Synthetic data stands in for a real feed (2,053 raw events, 2,051 unique). Triag
 
 ## Limitations
 
-Synthetic data, one tenant, no SSO. Live model latency measured during development at 18–48 s per question on a free tier; not an SLA. "Proven" flakiness needs same-commit reruns; root causes are hypotheses because diffs are not in the data. The rule file is hand-authored. Replay traces and the public demo URL are being finalised before the meeting.
+Synthetic data, one tenant, no SSO. Live latency measured during development on a free tier: 8 s end-to-end for scenario A, 9–14 s median per eval case; not an SLA. Agent wording varies between runs; the eval harness measures it. "Proven" flakiness needs same-commit reruns; root causes are hypotheses because diffs are not in the data. The rule file is hand-authored.

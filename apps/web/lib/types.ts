@@ -591,3 +591,55 @@ export interface TriageInbox {
   items: TriageItem[];
   counts_by_defect: Record<TriageCode, number>;
 }
+
+export type ConnectorStatus = "connected" | "stale" | "lost";
+export type VersionState = "current" | "behind" | "unsupported";
+export type ConnectorAdapter = "github-actions" | "jenkins" | "junit-xml" | "reportportal";
+
+export interface Connector {
+  id: string;
+  name: string;
+  sandbox: boolean;
+  adapters: ConnectorAdapter[];
+  status: ConnectorStatus;
+  last_heartbeat_utc: string;
+  heartbeat_age_s: number;
+  version: string;
+  version_state: VersionState;
+  host: string;
+  egress: string[];
+  scopes: string[];
+  paused: boolean;
+  events_ingested_24h: number;
+}
+
+export interface FleetPolicy {
+  read_only: boolean;
+  scopes: string[];
+  adapters: ConnectorAdapter[];
+  egress_allowlist: string[];
+  redaction: { rule: string; detail: string }[];
+  heartbeat_s: number;
+  stale_after_s: number;
+  lost_after_s: number;
+  max_batch: number;
+}
+
+export interface AuditEntry {
+  ts: string;
+  actor: string;
+  action: string;
+  target: string;
+  detail: string;
+}
+
+export interface FleetSnapshot {
+  workspace: { name: string; sandbox: boolean; kill_switch: boolean };
+  as_of_utc: string;
+  target_version: string;
+  min_supported_version: string;
+  connectors: Connector[];
+  policy: FleetPolicy;
+  recent_events: number;
+  audit: AuditEntry[];
+}

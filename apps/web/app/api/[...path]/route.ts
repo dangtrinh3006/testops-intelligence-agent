@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const upstream = () => (process.env.AGENT_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
-const FORWARD_HEADERS = ["content-type", "x-request-id", "x-forwarded-for"];
+// authorization carries connector credentials for /api/fleet and /api/ingest; the UI itself sends none.
+const FORWARD_HEADERS = ["content-type", "x-request-id", "x-forwarded-for", "authorization"];
 
 async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;

@@ -22,6 +22,7 @@ const PAGES: { href: string; label: string }[] = [
   { href: "/data-quality", label: "Data quality" },
   { href: "/evals", label: "Agent evals" },
   { href: "/rules", label: "Rules" },
+  { href: "/fleet", label: "Agent fleet & connectors" },
   { href: "/architecture", label: "Architecture" },
   { href: "/pilot", label: "Pilot" },
   { href: "/dev", label: "Developer workspace" },

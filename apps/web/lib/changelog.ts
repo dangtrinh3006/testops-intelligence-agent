@@ -23,6 +23,18 @@ export const CHANGELOG: Release[] = [
     items: [
       {
         tag: "New",
+        title: "Agent fleet & connectors",
+        body: "Control plane for QE connectors in customer networks: enrolment, heartbeat status, version drift, pulled policy, per-connector and workspace kill switches, and an audit log. Sandbox connectors are simulated.",
+        href: "/fleet",
+      },
+      {
+        tag: "New",
+        title: "Connector CLI",
+        body: "scripts/testops_connector.py enrols with a one-time code, heartbeats, and pushes JUnit XML results over outbound HTTPS only, with retries and a dry-run mode.",
+        href: "/fleet",
+      },
+      {
+        tag: "New",
         title: "Developer workspace",
         body: "See whether a failing run is caused by your commit, a flaky test or the platform, preview the PR check, and copy the CLI or GitHub Action snippet.",
         href: "/dev",

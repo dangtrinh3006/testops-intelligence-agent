@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sample JUnit report for the connector CLI (synthetic). -->
+<testsuites name="checkout-web">
+  <testsuite name="checkout.cart" tests="3" failures="1" errors="0" skipped="1" timestamp="2026-11-17T08:00:00">
+    <testcase classname="checkout.cart" name="adds_item" time="0.41"/>
+    <testcase classname="checkout.cart" name="applies_coupon" time="1.02">
+      <failure type="AssertionError" message="expected total 90.00, got 100.00; notify qa.owner@kestrel.example">at cart.spec.ts:42</failure>
+    </testcase>
+    <testcase classname="checkout.cart" name="gift_wrap" time="0">
+      <skipped message="feature flag off"/>
+    </testcase>
+  </testsuite>
+  <testsuite name="checkout.payment" tests="1" errors="1" timestamp="2026-11-17T15:05:00+07:00">
+    <testcase classname="checkout.payment" name="card_3ds" time="30.0">
+      <error type="TimeoutError" message="gateway did not answer in 30 s"/>
+    </testcase>
+  </testsuite>
+</testsuites>

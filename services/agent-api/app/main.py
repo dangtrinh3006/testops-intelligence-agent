@@ -1,4 +1,7 @@
-"""FastAPI app. Read-only by design: there is no endpoint that mutates CI, releases or the dataset."""
+"""FastAPI app. Read-only by design: there is no endpoint that mutates CI, releases or the dataset.
+
+The only writes are the sandbox fleet control plane (/api/fleet/*, /api/ingest/events), held in process memory.
+"""
 
 from __future__ import annotations
 
@@ -10,14 +13,15 @@ import threading
 import time
 import uuid
 from collections import defaultdict, deque
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Body, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .agent import graph as _graph  # noqa: F401 - import LangGraph at cold start, not inside the first request
 from .agent.llm import candidates, model_config
 from .agent.service import PRESETS, ask, ask_stream
-from .domain import checks, commits, history, triage
+from .domain import checks, commits, fleet, history, triage
 from .domain.knowledge import knowledge
 from .schemas import AskRequest, AskResponse
 from .store import DATA_DIR, DataUnavailable, dataset
@@ -269,3 +273,53 @@ def tools_catalog():
     return {"tools": tool_specs()}
 
 
+# --- Agent fleet control plane (sandbox, in memory). Human and connector facing; never exposed to the agent or MCP. ---
+
+def _bearer(value: str | None) -> str | None:
+    if value and value[:7].lower() == "bearer ":
+        return value[7:].strip() or None
+    return None
+
+
+def _fleet(fn, *args):
+    try:
+        return fn(*args)
+    except fleet.FleetError as e:
+        raise HTTPException(e.status, {"error": e.code, "message": e.message}) from None
+
+
+@app.get("/api/fleet")
+def fleet_overview():
+    return fleet.store().snapshot()
+
+
+@app.post("/api/fleet/enrol")
+def fleet_enrol(body: fleet.EnrolRequest):
+    """Exchange the one-time enrolment code for a per-connector credential (returned once, stored as a digest)."""
+    return _fleet(fleet.store().enrol, body)
+
+
+@app.post("/api/fleet/workspace/kill-switch")
+def fleet_kill_switch(body: fleet.KillSwitchRequest):
+    return _fleet(fleet.store().set_kill_switch, body.enabled)
+
+
+@app.post("/api/fleet/{connector_id}/heartbeat")
+def fleet_heartbeat(connector_id: str, body: fleet.HeartbeatRequest | None = None,
+                    authorization: Annotated[str | None, Header()] = None):
+    return _fleet(fleet.store().heartbeat, connector_id, _bearer(authorization), body or fleet.HeartbeatRequest())
+
+
+@app.post("/api/fleet/{connector_id}/pause")
+def fleet_pause(connector_id: str):
+    return _fleet(fleet.store().set_paused, connector_id, True)
+
+
+@app.post("/api/fleet/{connector_id}/resume")
+def fleet_resume(connector_id: str):
+    return _fleet(fleet.store().set_paused, connector_id, False)
+
+
+@app.post("/api/ingest/events")
+def ingest_events(batch: Annotated[list[dict], Body()], authorization: Annotated[str | None, Header()] = None):
+    return _fleet(fleet.store().ingest, _bearer(authorization), batch)

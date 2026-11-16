@@ -9,6 +9,7 @@ import type {
   CommitRow,
   TriageInbox,
   FlakyResponse,
+  FleetSnapshot,
   Health,
   Knowledge,
   Overview,
@@ -124,6 +125,15 @@ export const api = {
     if (!("kind" in body) && "run" in body) return { kind: "run", ...body } as RecordResponse;
     return body as unknown as RecordResponse;
   },
+  fleet: (signal?: AbortSignal) => request<FleetSnapshot>("/api/fleet", { signal }),
+  setConnectorPaused: (id: string, paused: boolean) =>
+    request<{ connector_id: string; paused: boolean }>(`/api/fleet/${encodeURIComponent(id)}/${paused ? "pause" : "resume"}`, { method: "POST" }),
+  setKillSwitch: (enabled: boolean) =>
+    request<{ kill_switch: boolean }>("/api/fleet/workspace/kill-switch", {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+      headers: { "content-type": "application/json" },
+    }),
   ask: (req: AskRequest, signal?: AbortSignal) =>
     request<AskResponse>("/api/ask", {
       method: "POST",

@@ -48,6 +48,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
   {
     group: "Platform",
     items: [
+      { href: "/fleet", label: "Agent fleet", icon: icon("M3 4.5h10v3H3zM3 9.5h10v3H3zM5 6h.01M5 11h.01M8 2v2.5M8 7.5v2") },
       { href: "/architecture", label: "Architecture", icon: icon("M2.5 3h4v3h-4zM9.5 3h4v3h-4zM6 10h4v3H6zM4.5 6v2h7V6M8 8v2") },
       { href: "/pilot", label: "Pilot plan", icon: icon("M3 13.5V3l4 2 4-2 2 1v9.5l-2-1-4 2-4-2z") },
     ],

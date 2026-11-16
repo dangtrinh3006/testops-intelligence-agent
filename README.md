@@ -65,7 +65,7 @@ flowchart LR
 ├── services/agent-api/
 │   ├── app/
 │   │   ├── etl.py               raw events -> normalised records + data-quality findings
-│   │   ├── domain/              gate.py, flaky.py, cost.py, evidence.py, knowledge.py
+│   │   ├── domain/              gate.py, flaky.py, cost.py, evidence.py, knowledge.py, fleet.py (connector control plane)
 │   │   ├── tools.py             8 bounded read-only tools (the agent's only data access)
 │   │   ├── agent/               graph.py (LangGraph), client.py, validator.py, service.py
 │   │   ├── evals.py             agent eval harness (golden / adversarial / robustness)
@@ -89,7 +89,7 @@ git clone https://github.com/dangtrinh3006/testops-intelligence-agent.git
 cd testops-intelligence-agent/services/agent-api
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt pytest uvicorn
-python -m pytest -q                                     # 46 passed, 2 skipped (DB tests need TEST_DATABASE_URL)
+python -m pytest -q                                     # 80 passed, 2 skipped (DB tests need TEST_DATABASE_URL)
 python -m uvicorn app.main:app --port 8000              # fixtures + offline mode, no keys needed
 ```
 
@@ -110,7 +110,7 @@ Postgres (optional, same results as fixtures):
 docker run -d --name testops-pg -e POSTGRES_PASSWORD=localdev -p 5440:5432 postgres:17-alpine
 export DATABASE_URL=postgresql://postgres:localdev@localhost:5440/postgres READONLY_PASSWORD=local-reader
 python -m app.seed                                      # idempotent; creates role testops_reader (SELECT only)
-TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 48 passed: adds the DB parity + read-only role tests
+TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 82 passed: adds the DB parity + read-only role tests
 ```
 
 ## Shift-left: release check in CI and from your IDE (MCP)
@@ -118,6 +118,18 @@ TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 48 passed: adds the DB
 - `GET /api/checks/{run_or_rc}`: the gate verdict as a CI check (`success | neutral | action_required | failure`) with a PR-comment-ready markdown summary. `GET /api/commits/{sha}` attributes each failure on a commit to `likely_this_change`, `known_flaky`, `infrastructure` or `unknown`. `GET /api/triage` is the QE queue with defect type and suggested action.
 - `python services/agent-api/scripts/testops_gate.py --run run-chk-main-0418 --api https://testops.dangtrinh.dev` exits 0 success/neutral, 1 BLOCK, 2 HOLD, 3 error. Example workflow: [`examples/github-actions-release-gate.yml`](examples/github-actions-release-gate.yml).
 - MCP (stdio, read-only, 8 tools + `release_check`): `pip install -e "services/agent-api[mcp]"`, then register `python -m app.mcp_server` with `cwd` `services/agent-api` in Claude Code (`.mcp.json`) or Cursor. Snippet in `app/mcp_server.py`.
+
+## Fleet & connector
+
+`/fleet` is the control plane an FDE uses to install QE connectors in a customer network. A connector runs inside the customer VPC and only calls out over HTTPS 443; it opens no ports, and credentials to the customer's CI never leave the network, only test outcomes do.
+
+- Lifecycle: a one-time enrolment code is exchanged for a per-connector credential (shown once, stored server-side as a SHA-256 digest). Heartbeat every 30 s; status `connected` (< 90 s), `stale` (< 4 min), `lost` (≥ 4 min). Version is compared with the target (`current`, `behind`, `unsupported`).
+- Policy is pulled on every heartbeat: read-only scopes `read:ci`, `read:artifacts`, enabled adapters (`github-actions`, `jenkins`, `junit-xml`, `reportportal`), egress allowlist, local redaction rules.
+- Kill switches per connector and per workspace: pushes from a paused connector are rejected with `423`. Pause, resume and the kill switch are human operator actions, audited, and not exposed to the agent tools or the MCP server.
+- Endpoints: `GET /api/fleet`, `POST /api/fleet/enrol`, `POST /api/fleet/{id}/heartbeat` (Bearer), `POST /api/ingest/events` (Bearer, ≤ 500 events, schema allowlist, emails in messages redacted), `POST /api/fleet/{id}/pause|resume`, `POST /api/fleet/workspace/kill-switch`.
+- CLI (standard library only): `python services/agent-api/scripts/testops_connector.py enrol --api http://localhost:8000 --code enroll-demo-not-secret --name acme-ci-1 --adapter junit-xml`, then `push --junit services/agent-api/tests/fixtures/junit-sample.xml --run-id run-1 --service checkout-web` (add `--dry-run` to print events only) and `run --interval 30`. The credential is saved to `~/.testops-connector.json` with mode 0600. HTTPS is required except for localhost; 429/5xx are retried with backoff; 423 stops the push (exit 4).
+- `enroll-demo-not-secret` is the public sandbox enrolment code; any other code returns `403`.
+- Sandbox limits: the four Kestrel connectors are simulated (their heartbeat age is fixed). State lives in process memory: it resets on a restart or a serverless cold start, and separate serverless instances do not share it, so on the hosted demo a connector enrolled on one instance can get `401` on another. Ingested events are counted and the last 50 kept in memory; they never enter the release dataset.
 
 ## Environment variables (API)
 
@@ -146,7 +158,7 @@ Web: `AGENT_API_URL` (read at runtime by the route handler `apps/web/app/api/[..
 | Web | `cd apps/web && npm run typecheck && npm run lint && npm run build` |
 | Deployed smoke test | `python scripts/smoke.py https://testops.dangtrinh.dev` (add `--live` for one live answer) |
 
-CI: `.github/workflows/ci.yml` runs on every push to `main` and on pull requests: ruff, pytest with a Postgres service (all 48 tests, including DB parity), the offline eval report; web typecheck, lint and build.
+CI: `.github/workflows/ci.yml` runs on every push to `main` and on pull requests: ruff, pytest with a Postgres service (all 82 tests, including DB parity), the offline eval report; web typecheck, lint and build.
 
 Agent evals: 10 cases (golden, adversarial, robustness). History in `services/agent-api/data/evals/HISTORY.md`: live run 1 scored 7/10 (2 validator false positives, 1 real prompt gap), run 2 10/10 after fixes (median 14.0 s). After the red-team review tightened the validator, three single runs scored 8/10, 9/10 and 8/10 with different cases failing: agent nondeterminism. The harness now takes `--repeat N` and classifies each case stable, flaky or failing, the same way the product classifies tests. The 3× stability run (`data/evals/latest.json`, `gemini-3.5-flash-lite`): 7/10 cases passed every run (pass^3 = 0.7, the τ-bench reliability metric), 26/30 runs passed (pass@1 0.867), 7 stable, 3 flaky, 0 failing, median 13.7 s; the policy verdict was correct in all 30 runs.
 

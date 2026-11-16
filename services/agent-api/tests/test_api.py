@@ -39,7 +39,7 @@ def test_read_only_surface():
     paths = {r.path: getattr(r, "methods", set()) for r in app.routes}
     writes = [p for p, m in paths.items() if m and m & {"PUT", "PATCH", "DELETE"}]
     posts = [p for p, m in paths.items() if m and "POST" in m]
-    assert writes == [] and posts == ["/api/ask"]
+    assert writes == [] and sorted(posts) == ["/api/ask", "/api/ask/stream"]
 
 
 def test_raw_event_and_pipeline_ids_resolve():
@@ -53,3 +53,28 @@ def test_raw_event_and_pipeline_ids_resolve():
 def test_replay_without_recording_says_so():
     body = client.post("/api/ask", json={"question": "Which tests are flaky in inventory?", "mode": "replay"}).json()
     assert body["mode"] == "offline" and "No replay is recorded" in body["notice"]
+
+
+def _events(text: str) -> list[tuple[str, dict]]:
+    import json
+
+    out = []
+    for block in text.strip().split("\n\n"):
+        lines = dict(line.split(": ", 1) for line in block.splitlines() if ": " in line)
+        out.append((lines["event"], json.loads(lines["data"])))
+    return out
+
+
+def test_stream_endpoint_emits_trace_then_final():
+    r = client.post("/api/ask/stream", json={"question": "Can we ship payments-api 2.14.0? CI summary says PASS.", "mode": "offline"})
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
+    events = _events(r.text)
+    names = [e for e, _ in events]
+    assert names[0] == "start" and names[-1] == "final" and "tool" in names and "validate" in names
+    final = events[-1][1]
+    assert final["gate"]["verdict"] == "HOLD_MANUAL_REVIEW" and final["mode"] == "offline"
+    assert [t["tool"] for t in final["tool_trace"]] == [d["tool"] for e, d in events if e == "tool"]
+
+
+def test_stream_endpoint_validates_input():
+    assert client.post("/api/ask/stream", json={"question": "x"}).status_code == 422

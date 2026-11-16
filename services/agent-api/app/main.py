@@ -5,15 +5,18 @@ from __future__ import annotations
 import json
 import logging
 import os
+import queue
+import threading
 import time
 import uuid
 from collections import defaultdict, deque
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
+from .agent import graph as _graph  # noqa: F401 - import LangGraph at cold start, not inside the first request
 from .agent.llm import model_config
-from .agent.service import PRESETS, ask
+from .agent.service import PRESETS, ask, ask_stream
 from .domain.knowledge import knowledge
 from .schemas import AskRequest, AskResponse
 from .store import DATA_DIR, DataUnavailable, dataset
@@ -28,6 +31,7 @@ app = FastAPI(title="TestOps Intelligence Agent API", version="0.1.0",
 # Abuse protection for a public demo: per-IP sliding window + per-instance daily cap on live model calls.
 RATE_WINDOW_S, RATE_MAX = 60, int(os.environ.get("RATE_LIMIT_PER_MINUTE", "6"))
 LIVE_DAILY_CAP = int(os.environ.get("LIVE_DAILY_CAP", "150"))
+PING_SECONDS = 5
 _hits: dict[str, deque] = defaultdict(deque)
 _live_calls = {"day": time.strftime("%Y-%m-%d"), "count": 0}
 
@@ -101,18 +105,61 @@ def overview():
             "presets": [{"id": k, "question": v} for k, v in PRESETS.items()]}
 
 
+def _guard_live(body: AskRequest, request: Request) -> None:
+    if body.mode != "live":
+        return
+    if _rate_limited(_client_ip(request)):
+        raise HTTPException(429, {"error": "rate_limited", "message": f"Max {RATE_MAX} live questions per minute. Try replay or offline mode."})
+    today = time.strftime("%Y-%m-%d")
+    if _live_calls["day"] != today:
+        _live_calls.update(day=today, count=0)
+    if _live_calls["count"] >= LIVE_DAILY_CAP:
+        raise HTTPException(429, {"error": "daily_cap", "message": "Daily live-model budget for this demo is used up. Replay and offline modes still work."})
+    _live_calls["count"] += 1
+
+
+@app.post("/api/ask/stream")
+def ask_stream_endpoint(body: AskRequest, request: Request):
+    """Server-sent events: start, plan, tool, compose, validate, notice, final (or error)."""
+    _guard_live(body, request)
+    ds, _ = _ds()
+
+    def produce(q: queue.Queue) -> None:
+        try:
+            for item in ask_stream(ds, body.question.strip(), body.mode, body.scenario):
+                q.put(item)
+        except Exception as e:  # noqa: BLE001 - surfaced to the client as a typed event
+            log.exception(json.dumps({"event": "ask_stream_error", "error": type(e).__name__}))
+            q.put(("error", {"error": "internal_error", "message": type(e).__name__}))
+        finally:
+            q.put(None)
+
+    def events():
+        q: queue.Queue = queue.Queue()
+        threading.Thread(target=produce, args=(q,), daemon=True).start()
+        while True:
+            try:
+                item = q.get(timeout=PING_SECONDS)
+            except queue.Empty:
+                # Proxies and mobile networks drop a stream that stays silent while the model thinks.
+                yield "event: ping\ndata: {}\n\n"
+                continue
+            if item is None:
+                return
+            ev, data = item
+            if ev == "final":
+                log.info(json.dumps({"request_id": data["request_id"], "event": "ask_stream", "mode": data["mode"], "model": data["model"],
+                                     "tools": [t["tool"] for t in data["tool_trace"]], "validation": data["validation"]["passed"],
+                                     "latency_ms": data["latency_ms"]}))
+            yield f"event: {ev}\ndata: {json.dumps(data, default=str)}\n\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"})
+
+
 @app.post("/api/ask", response_model=AskResponse)
 def ask_endpoint(body: AskRequest, request: Request):
-    ip = _client_ip(request)
-    if body.mode == "live":
-        if _rate_limited(ip):
-            raise HTTPException(429, {"error": "rate_limited", "message": f"Max {RATE_MAX} live questions per minute. Try replay or offline mode."})
-        today = time.strftime("%Y-%m-%d")
-        if _live_calls["day"] != today:
-            _live_calls.update(day=today, count=0)
-        if _live_calls["count"] >= LIVE_DAILY_CAP:
-            raise HTTPException(429, {"error": "daily_cap", "message": "Daily live-model budget for this demo is used up. Replay and offline modes still work."})
-        _live_calls["count"] += 1
+    _guard_live(body, request)
     ds, _ = _ds()
     resp = ask(ds, body.question.strip(), body.mode, body.scenario)
     log.info(json.dumps({"request_id": resp.request_id, "event": "ask", "mode": resp.mode, "model": resp.model,

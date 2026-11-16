@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Iterator
 from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -212,4 +213,31 @@ def run_live(cfg: ModelConfig, ds: Dataset, question: str, model: str | None = N
     return graph.invoke(init, {"recursion_limit": 40})
 
 
-__all__ = ["SYSTEM", "ModelError", "build_graph", "run_live", "tool_specs"]
+def stream_live(cfg: ModelConfig, ds: Dataset, question: str, model: str | None = None) -> Iterator[tuple[str, dict]]:
+    """Same graph as run_live, but yields one event per node as it finishes; the last event is ("done", state)."""
+    graph = build_graph(cfg, ds, model or cfg.model)
+    state: dict = {"question": question, "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": question}],
+                   "trace": [], "results": [], "gates": {}, "revisions": 0, "usage": {}}
+    for update in graph.stream(dict(state), {"recursion_limit": 40}, stream_mode="updates"):
+        for node, delta in update.items():
+            if not delta:
+                continue
+            seen = len(state.get("trace", []))
+            state.update(delta)
+            if node == "agent":
+                msg = state["messages"][-1]
+                calls = [{"tool": c["function"]["name"], "args": c["function"].get("arguments", "")} for c in msg.get("tool_calls") or []]
+                yield "plan", {"tool_calls": calls, "model_calls": state.get("usage", {}).get("model_calls", 0),
+                               "ready": not calls}
+            elif node == "tools":
+                for t in state["trace"][seen:]:
+                    yield "tool", t
+            elif node == "compose":
+                yield "compose", {"attempt": state.get("failures", 0) + 1, "claims": len(state["draft"].get("claims", []))}
+            elif node == "validate":
+                v = state["validation"]
+                yield "validate", {"passed": v["passed"], "checks": v["checks"], "will_revise": not v["passed"] and state.get("failures", 0) <= 1}
+    yield "done", state
+
+
+__all__ = ["SYSTEM", "ModelError", "build_graph", "run_live", "stream_live", "tool_specs"]

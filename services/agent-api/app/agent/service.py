@@ -6,6 +6,7 @@ import json
 import re
 import time
 import uuid
+from collections.abc import Iterator
 
 from app.etl import Dataset
 from app.schemas import AskResponse, Claim, EvidenceRef, GateView, ToolCall, Validation
@@ -191,6 +192,51 @@ def offline(ds: Dataset, question: str) -> tuple[dict, list[dict], list[dict], d
         draft = {"answer": answer, "recommended_next_action": NEXT_ACTION[g["verdict"]], "claims": claims, "assumptions": [],
                  "uncertainty": "Root cause is a hypothesis: commit diffs and application logs are not in this dataset."}
     return draft, trace, results, gates
+
+
+# ---------------- streaming entry point ----------------
+def ask_stream(ds: Dataset, question: str, mode: str = "live", scenario: str | None = None) -> Iterator[tuple[str, dict]]:
+    """Yields (event, payload) while the answer is produced; the last event is ("final", AskResponse as dict).
+
+    Live mode streams real LangGraph node updates. Replay and offline modes emit their recorded or
+    deterministic tool trace at once: there is nothing to wait for, and they say so in `start`.
+    """
+    t0 = time.perf_counter()
+    rid = f"req_{uuid.uuid4().hex[:12]}"
+    cfg = model_config() if mode == "live" else None
+    if mode == "live" and cfg is not None:
+        yield "start", {"request_id": rid, "mode": "live", "model": cfg.model, "streaming": True}
+        from .graph import stream_live
+        last_err = None
+        for model in [cfg.model, cfg.fallback_model]:
+            if not model:
+                continue
+            try:
+                st = None
+                for ev, data in stream_live(cfg, ds, question, model):
+                    if ev == "done":
+                        st = data
+                    else:
+                        yield ev, data
+                resp = _response(rid, "live", model, question, st["draft"], st.get("trace", []), st.get("results", []),
+                                 st.get("gates", {}), st["validation"], st.get("revisions", 0), t0, ds,
+                                 None if model == cfg.model else f"Primary model failed ({last_err}); answered by fallback {model}.")
+                yield "final", resp.model_dump()
+                return
+            except Exception as e:  # noqa: BLE001 - provider errors degrade to the next option
+                last_err = f"{type(e).__name__} {getattr(e, 'status', '') or ''}".strip()
+                yield "notice", {"message": f"{model} failed ({last_err}); retrying with the next option.", "reset": True}
+        resp = ask(ds, question, "offline")
+        resp.request_id = rid
+        resp.notice = f"Model unavailable ({last_err}); answered by the offline deterministic planner. Tools and policy are unchanged."
+    else:
+        resp = ask(ds, question, mode, scenario)
+        resp.request_id = rid
+        yield "start", {"request_id": rid, "mode": resp.mode, "model": resp.model, "streaming": False}
+    for t in resp.tool_trace:
+        yield "tool", t.model_dump()
+    yield "validate", {"passed": resp.validation.passed, "checks": resp.validation.checks, "will_revise": False}
+    yield "final", resp.model_dump()
 
 
 # ---------------- entry point ----------------

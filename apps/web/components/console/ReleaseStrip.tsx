@@ -14,12 +14,6 @@ export function ReleaseStrip() {
         <Eyebrow>
           <span id="rc-title">Release candidates</span>
         </Eyebrow>
-        {data && (
-          <span className="font-mono text-[11px] text-faint">
-            {data.company.name} · as of <span className="tabular">{data.as_of.replace("T", " ").replace("Z", " UTC")}</span> ·{" "}
-            {data.totals.runs} runs · {data.totals.attempts} attempts · {data.totals.findings} data-quality findings
-          </span>
-        )}
       </div>
       {error && <ErrorBlock message={errorMessage(error)} onRetry={reload} />}
       <div className="grid gap-3 md:grid-cols-3">

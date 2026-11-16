@@ -74,7 +74,7 @@ export function RecentRuns() {
         <span className="font-mono text-[11px] text-faint">click a row to inspect</span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-[13px]">
+        <table className="w-full min-w-[720px] whitespace-nowrap text-[13px]">
           <thead className="label-mono border-b border-line bg-sunken/50 text-left text-[10px] text-faint">
             <tr>
               <th scope="col" className="px-4 py-2 font-medium sm:px-5">Run</th>

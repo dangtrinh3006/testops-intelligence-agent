@@ -10,13 +10,11 @@ export default function OverviewPage() {
       <OverviewHeader />
       <KpiRow />
       <ReleaseStrip />
-      <div className="mb-10 grid gap-4 xl:grid-cols-12">
-        <div className="min-w-0 xl:col-span-7">
-          <RecentRuns />
-        </div>
-        <div className="min-w-0 xl:col-span-5">
-          <AgentActivity />
-        </div>
+      <div className="mb-8">
+        <RecentRuns />
+      </div>
+      <div className="mb-10">
+        <AgentActivity />
       </div>
       <section id="ask" aria-label="Ask the agent" className="scroll-mt-20">
         <Suspense fallback={null}>

@@ -158,6 +158,7 @@ Today the API serves one implicit workspace, the Kestrel Commerce sandbox. The e
 | `LLM_MODEL` / `LLM_FALLBACK_MODEL` | no | Default `gemini-3.5-flash-lite` / `gemini-3.5-flash` |
 | `GROQ_API_KEY` | no | Adds Groq (`GROQ_MODEL`, default `openai/gpt-oss-120b`) to the model chain: after the Gemini models by default, before offline |
 | `LLM_PRIMARY` | no | `groq` puts Groq first in the chain; any other value keeps Gemini first |
+| `AI_GATEWAY_API_KEY` / `VERCEL_OIDC_TOKEN` | no | Used only when neither `LLM_API_KEY` nor `GROQ_API_KEY` is set: routes through Vercel AI Gateway (`LLM_MODEL`, default `anthropic/claude-sonnet-5`) |
 | `TESTOPS_DATA_SOURCE` | no | `fixtures` (default without DB) or `db` |
 | `DATABASE_URL_READONLY` | for `db` | Read-only role used by the API |
 | `DATABASE_URL` + `READONLY_PASSWORD` | seed only | Privileged connection for `python -m app.seed` |

@@ -184,7 +184,7 @@ Today the whole log (2,053 events) is rebuilt in memory from fixtures or from `r
 1. Ingestion: CI webhooks (GitHub Actions, GitLab, Jenkins, Katalon-style runners) → a queue → an idempotent writer into `raw_events` keyed by `(source, event_id)` with `ingest_id` as arrival order. Redelivery stays visible, as it does now.
 2. Materialised normalised tables: `migrations/001_schema.sql` already defines `runs`, `ci_summaries`, `attempts`, `log_lines`, `dq_findings` with raw and UTC columns side by side and indexes on `(service_id, queued_utc DESC)`, `(pipeline_id, queued_utc DESC)`, `(run_id)`, `(test_id, run_id)`. `app/seed.py` fills them from the same ETL. Tools switch from in-memory scans to indexed SQL per run or per test; the domain functions do not change because they take typed records.
 3. Incremental ETL: process new `ingest_id` ranges instead of full rebuilds; findings become append-only with a `detected_at`.
-4. Tenancy: a `tenant_id` column on every table and per-tenant API keys; the agent's role stays SELECT-only; `record_exists` becomes a tenant-scoped query.
+4. Tenancy: a `tenant_id` column on every table and per-tenant API keys; the agent's role stays SELECT-only; `record_exists` becomes a tenant-scoped query. Data model: §14.
 5. Operations: request ids already exist; add tracing per tool call, token usage per request (`graph._add_usage` accumulates it; not yet surfaced on the API), and alerting on validator failure rate.
 
 What does not change: the rule file, the tool contracts, the validator, the response schema.
@@ -203,3 +203,168 @@ Deployment as configured on 16 Nov: the API runs as one Vercel Python function (
 - `R6 staleness` for runs past the pipeline timeout with no terminal status is in the rule rationale but not implemented as a gate check; such a run surfaces as `incomplete_gating_test` instead.
 - Rate limits and the daily cap are in memory per serverless instance and reset on a cold start; the hard spending cap today is the free-tier quota. A pilot needs a gateway or shared counter.
 - The UI (`apps/web`) has no automated UI tests; CI runs its typecheck, lint and build only.
+
+## 14. Multi-workspace data model (design, not implemented)
+
+Status: design only. The running code has **one implicit workspace**: the fictional Kestrel Commerce sandbox (`app/domain/fleet.py:21`, `WORKSPACE = "Kestrel Commerce"`), with one rule file, one dataset, and one in-memory fleet and audit log per process. No table has a `workspace_id` and no endpoint takes one. Below is the target model for an enterprise install, where an FDE installs the Digital QE per customer: one control plane, many workspaces. It refines step 4 of §12 (`tenant_id` there is `organization_id` here).
+
+Terms: an **organization** is the tenant (contract, SSO, data residency). A **workspace** is the isolation unit inside it: a business unit or an environment (`payments-prod`, `payments-staging`). Evidence, connectors, policy and audit are scoped to a workspace; users and the default policy are scoped to the organization.
+
+```mermaid
+erDiagram
+    ORGANIZATION ||--o{ WORKSPACE : owns
+    ORGANIZATION ||--o{ POLICY : "org default"
+    ORGANIZATION ||--o{ USER : employs
+    USER ||--o{ ROLE_BINDING : holds
+    WORKSPACE ||--o{ ROLE_BINDING : "scopes (null = org-wide)"
+    WORKSPACE ||--o{ SERVICE : catalogs
+    WORKSPACE ||--o{ CONNECTOR : enrols
+    WORKSPACE ||--o{ POLICY : "versioned rules"
+    POLICY |o--o{ POLICY : "inherits from"
+    CONNECTOR ||--o{ RAW_EVENT : pushes
+    SERVICE ||--o{ RUN : has
+    RUN ||--o{ ATTEMPT : contains
+    RUN ||--o{ FINDING : "data quality"
+    WORKSPACE ||--o{ AUDIT_ENTRY : "append-only"
+    WORKSPACE ||--o{ AGENT_ANSWER : records
+    AGENT_ANSWER ||--o{ HUMAN_DECISION : "reviewed by"
+    USER ||--o{ HUMAN_DECISION : makes
+
+    ORGANIZATION {
+        text id PK
+        text name
+        text residency_region
+        text isolation_tier "shared_rls or dedicated_db"
+    }
+    WORKSPACE {
+        text id PK "e.g. kestrel-sandbox"
+        text organization_id FK
+        text environment "prod, staging, sandbox"
+        bool kill_switch
+    }
+    SERVICE {
+        text workspace_id PK
+        text service_id PK
+        jsonb catalog_entry "pipelines, tests, gating flags"
+    }
+    CONNECTOR {
+        text id PK
+        text workspace_id FK
+        text name
+        text credential_sha256 "digest only"
+        timestamptz enrolled_at
+        text version
+        text policy_version FK
+        bool paused
+    }
+    POLICY {
+        text id PK
+        text organization_id FK
+        text workspace_id FK "null = org default"
+        text parent_id FK "inherited default"
+        text version "e.g. 2026.11.1"
+        jsonb rules "testops_rules.yaml"
+        timestamptz published_at
+    }
+    RAW_EVENT {
+        text workspace_id PK
+        bigint ingest_id PK
+        text connector_id FK
+        text event_id
+        jsonb payload
+    }
+    RUN {
+        text workspace_id PK
+        text run_id PK
+        text service_id FK
+        text commit_sha
+    }
+    ATTEMPT {
+        text workspace_id PK
+        text attempt_id PK
+        text run_id FK
+        text status
+    }
+    FINDING {
+        text workspace_id PK
+        text id PK
+        text kind
+        text_array record_ids
+    }
+    AUDIT_ENTRY {
+        text workspace_id PK
+        bigint seq PK
+        text actor "principal id"
+        text kind "agent.answer, human.triage_decision, control_plane"
+        jsonb detail
+        text prev_hash "hash of entry seq-1"
+        text hash "sha256 of prev_hash plus entry"
+    }
+    AGENT_ANSWER {
+        text request_id PK
+        text workspace_id FK
+        text model
+        text policy_version
+        bool validation_passed
+        text_array failed_checks
+    }
+    HUMAN_DECISION {
+        text id PK
+        text workspace_id FK
+        text request_id FK
+        text user_id FK
+        text status "accepted or overridden"
+        text chosen_action
+    }
+    USER {
+        text id PK
+        text organization_id FK
+        text sso_subject
+    }
+    ROLE_BINDING {
+        text user_id FK
+        text organization_id FK
+        text workspace_id FK "null = org-wide"
+        text role "org_admin, workspace_operator, qe_reviewer, viewer"
+    }
+```
+
+Rules the model encodes:
+
+- Every evidence row carries `workspace_id` as part of its primary key: `run_id` and `attempt_id` are unique per workspace, not globally. Evidence ids in answers keep today's form; resolution is always by `(workspace_id, id)`.
+- A policy is a versioned copy of `testops_rules.yaml`. A workspace policy names its parent (the org default) and overrides keys; the gate reads the resolved document. Each answer and each connector stores the `policy_version` it used, so a verdict can be replayed against the exact rules.
+- The audit chain is per workspace: `hash = sha256(prev_hash ‖ canonical(entry))`; the writer role gets INSERT only, UPDATE and DELETE are revoked. Today entries have a sequence id and no hash (`app/domain/audit.py:71`).
+- Roles, least privilege: `org_admin` (workspaces, SSO, default policy), `workspace_operator` (enrol, pause, kill switch, publish workspace policy), `qe_reviewer` (accept or override triage), `viewer` (read). The **agent principal** is a separate read-only service identity bound to one workspace per request: SELECT on evidence, no audit writes (the API records `agent.answer`, as today in `app/main.py:75`), no control-plane actions.
+
+### Isolation options
+
+| Option | Mechanism | Trade-off | Use for |
+|---|---|---|---|
+| **Row-level security on `workspace_id`, shared Postgres** | `USING (workspace_id = current_setting('app.workspace_id'))` per table; the API sets the value per transaction with `SET LOCAL` (already used for `statement_timeout`, `app/store.py:41`) | One database and one migration path; a table without a policy leaks, so RLS is `FORCE`d and leak-tested per table | **Recommended default** |
+| Schema per workspace | `search_path` per request | Every migration runs N times; catalog bloat past a few hundred schemas | Rarely better than RLS |
+| Database per tenant (organization) | Physical separation: own credentials, region, backups, keys | One deployment per tenant; fleet-wide upgrades | **Regulated customers, data residency**, customer-managed keys; RLS still separates that tenant's workspaces |
+
+### Where the current code would take a `workspace_id`
+
+Read 17 Nov 2026, paths under `services/agent-api/`.
+
+| Place | Today | Change |
+|---|---|---|
+| `migrations/001_schema.sql:4,10,22,35,46,64,75` | 7 tables, no workspace column; `catalog` keyed by `'current'` | new migration `002` (not an edit of `001`): `workspace_id` on every table and in each PK, RLS policies, tables `organization`, `workspace`, `policy`, `connector`, `audit_entry`, `role_binding` |
+| `app/store.py:24`, `:42`, `:48` | one process cache; `catalog WHERE id = 'current'`; all `raw_events` | cache keyed by workspace; both queries filtered by `workspace_id` and by RLS |
+| `app/etl.py:157` `record_exists`, `:179` `build` | scan one dataset | logic unchanged; receives one workspace's records |
+| `app/domain/knowledge.py:11`, `:15` | one rule file, `lru_cache(maxsize=1)` | resolve `(workspace, version)` from `policy`; cache per key |
+| `app/domain/fleet.py:21`, `:29`, `:133`, `:167`, `:175`, `:200`, `:278` | constant workspace name, one public enrolment code, one kill switch, credential digest → connector, one policy, `enrol`, `set_kill_switch` | enrolment codes per workspace; the digest resolves `(workspace, connector)`; kill switch and policy per workspace |
+| `app/domain/audit.py:24`, `:68`, `:71` | fixed actor `reviewer (sandbox)`; 500-entry ring buffer; `_append` | actor from the SSO principal; `audit_entry` table with the hash chain |
+| `app/seed.py:18`, `:56-57` | one `testops_reader` role, SELECT on all tables | stays SELECT-only and subject to RLS (no `BYPASSRLS`) |
+| `app/agent/graph.py:28` | system prompt names Kestrel Commerce | workspace display name injected per request |
+| `app/main.py:288`, `:293`, `:322-354` | audit and fleet routes, unscoped | workspace taken from the authenticated principal, never from a client-supplied header |
+
+### Migration path
+
+1. Add `organization` and `workspace`, insert one row `kestrel-sandbox`, add `workspace_id NOT NULL DEFAULT 'kestrel-sandbox'` to every table and extend the PKs. Behaviour unchanged; `tests/test_db_parity.py` stays green.
+2. Thread `workspace_id` through `store.dataset()`, `knowledge()`, fleet and audit, from the authenticated principal, defaulting to the sandbox. Move fleet and audit state from memory to tables.
+3. Enable and `FORCE` RLS per table, drop the column default, add a cross-workspace leak test per table and per tool (query as workspace A, expect zero rows of B).
+4. Add SSO, role bindings and per-workspace enrolment codes; offer database-per-tenant as a deployment option on the same schema.
+
+Out of scope: billing and metering, cross-workspace analytics, a workspace admin UI, moving a workspace between isolation tiers, per-workspace model routing (the gateway row in §12).

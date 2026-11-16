@@ -141,6 +141,10 @@ TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 94 passed: adds the DB
 - `GET /api/audit?kind=agent.answer|human.triage_decision|control_plane&limit=` (limit ≤ 200).
 - Sandbox limit: a process-local ring buffer of 500 entries per instance. It resets on a restart or cold start, and serverless instances do not share it. A production install writes to an append-only store.
 
+## Multi-workspace model (design, not implemented)
+
+Today the API serves one implicit workspace, the Kestrel Commerce sandbox. The enterprise design (one control plane, many workspaces per customer: organization → workspace → connectors, versioned policy, dataset partition, hash-chained audit; roles with a read-only agent principal; row-level security by default, database per tenant for regulated customers) is in [`docs/technical-deep-dive.md` §14](docs/technical-deep-dive.md#14-multi-workspace-data-model-design-not-implemented), with the code places that would take a `workspace_id` and a four-step migration path. `/architecture` shows a summary at the end of the page.
+
 ## Settings & integrations
 
 `/settings` and `GET /api/integrations` report what the running API actually has, from runtime state only: the ordered model chain (configured booleans, fallback order, offline planner always last), data source and counts, rules version, and each integration's status. Statuses are `connected`, `available` (a script or API exists in this deployment), `example`, `documented` (exists in the repository but not in this bundle, e.g. scripts on Vercel), `not_connected` and `planned`. ReportPortal, Jira, Slack and GitHub Checks write-back are `not_connected`: they are planned and the agent is read-only. The response contains names, booleans and counts, never credential values or endpoint URLs; nothing on the page is editable.

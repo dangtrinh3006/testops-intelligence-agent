@@ -33,6 +33,7 @@ export function ArchitectureView() {
       <Modes />
       <Safety />
       <MvpToProduction />
+      <MultiWorkspace />
     </div>
   );
 }
@@ -484,6 +485,92 @@ function MvpToProduction() {
           ))}
         </ul>
       </Card>
+    </section>
+  );
+}
+
+/* ---------- (g) multi-workspace model (design only) ---------- */
+
+const WORKSPACE_PARTS: { k: string; v: string }[] = [
+  { k: "Connectors", v: "Enrolled per workspace; credential stored as a SHA-256 digest, version and policy version tracked." },
+  { k: "Policy version", v: "Versioned rule file that inherits the organization default and overrides keys." },
+  { k: "Dataset partition", v: "raw_event, run, attempt and finding rows, every one keyed by workspace_id." },
+  { k: "Audit chain", v: "Append-only entries, each hashing the previous one; actor, kind, request id." },
+];
+
+const EXAMPLE_WORKSPACES = ["payments-prod", "payments-staging"];
+
+const ISOLATION: { name: string; how: string; fit: string; recommended?: boolean }[] = [
+  {
+    name: "Row-level security",
+    how: "Shared Postgres, workspace_id on every row, policy per table set per transaction.",
+    fit: "Default for most customers.",
+    recommended: true,
+  },
+  {
+    name: "Schema per workspace",
+    how: "One schema each, chosen by search_path per request.",
+    fit: "Every migration runs N times; rarely better than RLS.",
+  },
+  {
+    name: "Database per tenant",
+    how: "Own database, credentials, region and keys per organization.",
+    fit: "Regulated customers and data residency.",
+  },
+];
+
+function MultiWorkspace() {
+  return (
+    <section aria-labelledby="mws-title">
+      <SectionHeading id="mws-title" eyebrow="Design · not implemented yet" title={<>Multi-workspace <em className="italic text-accent">model</em></>}>
+        For an enterprise install: one control plane, many workspaces per customer. Data model and migration path in
+        docs/technical-deep-dive.md §14.
+      </SectionHeading>
+      <p className="mb-5 inline-flex items-center gap-2 rounded-[3px] border border-line-strong bg-sunken px-3 py-1.5 text-[13px] text-ink">
+        <span className="label-mono text-[10px] text-faint">Today</span>
+        One implicit workspace (Kestrel Commerce sandbox). No table or endpoint takes a workspace id yet.
+      </p>
+      <div className="rounded-[4px] border border-line bg-canvas p-4 sm:p-6">
+        <div className="mx-auto max-w-xl">
+          <Node tag="organization · tenant" title="Organization" sub="SSO, users and role bindings, default policy, data residency" />
+        </div>
+        <Conn label="one to many" />
+        <ul className="grid gap-3 lg:grid-cols-2">
+          {EXAMPLE_WORKSPACES.map((w) => (
+            <li key={w}>
+              <Boundary label={`workspace · ${w}`}>
+                <h3 className="sr-only">Workspace {w}</h3>
+                <ul className="grid gap-2 sm:grid-cols-2">
+                  {WORKSPACE_PARTS.map((p) => (
+                    <li key={p.k} className="rounded-[3px] border border-line bg-surface p-2.5">
+                      <div className="label-mono text-[10px] text-accent">{p.k}</div>
+                      <p className="mt-1 text-[12.5px] leading-snug text-muted">{p.v}</p>
+                    </li>
+                  ))}
+                </ul>
+              </Boundary>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-[12.5px] text-muted">
+          Roles: org admin, workspace operator, QE reviewer, viewer. The agent is a separate read-only principal bound to one workspace per request.
+        </p>
+      </div>
+      <h3 className="label-mono mb-3 mt-8 text-faint">Isolation options</h3>
+      <ul className="grid gap-3 md:grid-cols-3">
+        {ISOLATION.map((o) => (
+          <li key={o.name}>
+            <Card as="div" className={cx("h-full p-4", o.recommended && "border-accent/60 bg-accent/[0.05]")}>
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="font-serif text-[17px] leading-snug text-ink">{o.name}</h4>
+                {o.recommended && <Pill tone="amber">Recommended</Pill>}
+              </div>
+              <p className="mt-2 text-[13px] text-muted">{o.how}</p>
+              <p className="mt-2 text-[13px] text-ink">{o.fit}</p>
+            </Card>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

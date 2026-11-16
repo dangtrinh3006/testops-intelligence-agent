@@ -8,7 +8,7 @@ export default function DocsPage() {
   return (
     <>
       <PageTitle title="Documentation" eyebrow="User guide">
-        How to read a release decision, find the evidence behind it, and use the agent from your own workflow.
+        How to read a release decision, find the evidence behind it, use the agent from your own workflow and install a connector.
       </PageTitle>
       <DocsView />
     </>

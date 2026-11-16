@@ -15,6 +15,7 @@ const TOC: { id: string; label: string; sub?: { id: string; label: string }[] }[
       { id: "qe", label: "Quality engineer" },
       { id: "developer", label: "Developer" },
       { id: "leader", label: "Engineering leader" },
+      { id: "platform", label: "Platform / FDE" },
     ],
   },
   {
@@ -28,9 +29,14 @@ const TOC: { id: string; label: string; sub?: { id: string; label: string }[] }[
       { id: "modes", label: "Answer modes" },
       { id: "evidence", label: "Evidence and the inspector" },
       { id: "pass-k", label: "pass^k" },
+      { id: "fleet", label: "Agent fleet" },
+      { id: "audit", label: "Audit log" },
+      { id: "integrations", label: "Settings and integrations" },
+      { id: "workspaces", label: "Multi-workspace" },
     ],
   },
   { id: "shortcuts", label: "Keyboard shortcuts" },
+  { id: "governance", label: "Governance guarantees" },
   { id: "trust", label: "Trust and safety" },
   { id: "faq", label: "FAQ" },
 ];
@@ -102,10 +108,10 @@ function Steps({ items }: { items: ReactNode[] }) {
   );
 }
 
-function Table({ head, rows, labelledBy }: { head: string[]; rows: ReactNode[][]; labelledBy: string }) {
+function Table({ head, rows, labelledBy, equal }: { head: string[]; rows: ReactNode[][]; labelledBy: string; equal?: boolean }) {
   return (
     <div className="mt-3 overflow-x-auto rounded-[4px] border border-line" role="region" tabIndex={0} aria-labelledby={labelledBy}>
-      <table className="w-full min-w-[520px] text-[13px]" aria-labelledby={labelledBy}>
+      <table className={`w-full min-w-[520px] text-[13px]${equal ? " table-fixed" : ""}`} aria-labelledby={labelledBy}>
         <thead className="label-mono bg-sunken/60 text-left text-[10px] text-faint">
           <tr>
             {head.map((h) => (
@@ -119,7 +125,7 @@ function Table({ head, rows, labelledBy }: { head: string[]; rows: ReactNode[][]
           {rows.map((r, i) => (
             <tr key={i} className="align-top">
               {r.map((c, j) => (
-                <td key={j} className={cx("px-3 py-2", j === 0 ? "whitespace-nowrap text-ink" : "text-muted")}>
+                <td key={j} className={cx("px-3 py-2", j === 0 ? cx("text-ink", !equal && "whitespace-nowrap") : "text-muted")}>
                   {c}
                 </td>
               ))}
@@ -201,7 +207,8 @@ export function DocsView() {
             items={[
               <>
                 <A href="/triage">Triage inbox</A> <span className="font-mono text-[11px] text-accent">new</span>: failed attempts grouped by defect type.
-                Accept or override each suggestion with the keyboard; decisions are stored in your browser only.
+                Accept or override each suggestion with the keyboard; decisions are kept in your browser and copied to the{" "}
+                <A href="/audit">audit log</A>.
               </>,
               <>
                 <A href="/flaky">Flaky tests</A>: flake levels with flip rate and sample size. Infra-only retries are listed separately and never raise a level.
@@ -247,6 +254,52 @@ export function DocsView() {
                 <A href="/pilot">Pilot plan</A>: a four-week, read-only pilot with success criteria, an ROI calculator using your own numbers, risks and an
                 exit.
               </>,
+            ]}
+          />
+
+          <H3 id="platform" badge="new">
+            Platform / FDE
+          </H3>
+          <P>
+            A connector runs inside the customer network and only calls out over HTTPS 443; it opens no ports. It is one file,{" "}
+            <C>services/agent-api/scripts/testops_connector.py</C>, Python 3.9+, standard library only. <A href="/fleet">Agent fleet</A> shows the same
+            commands with copy buttons.
+          </P>
+          <Steps
+            items={[
+              <>
+                Enrol: <C>testops_connector.py enrol --api &lt;url&gt; --code enroll-demo-not-secret --name acme-ci-1 --adapter junit-xml</C>. The one-time
+                code is exchanged for a connector credential, saved to <C>~/.testops-connector.json</C> with mode 0600. The sandbox code is public; any other
+                code returns <C>403</C>. HTTPS is required except for localhost.
+              </>,
+              <>
+                Push after each CI run: <C>push --junit build/test-results/junit.xml --run-id &quot;$CI_RUN_ID&quot; --service checkout-web</C>. Add{" "}
+                <C>--dry-run</C> to print the events and send nothing. Batches hold at most 500 events; 429 and 5xx are retried with backoff.
+              </>,
+              <>
+                Keep it alive: <C>run --interval 30</C> heartbeats and pulls the policy. A connector silent for 90 s turns stale, after 4 min lost.
+              </>,
+            ]}
+          />
+          <Table labelledBy="platform"
+            head={["Exit code", "Meaning"]}
+            rows={[
+              [<C key="0">0</C>, "OK."],
+              [<C key="3">3</C>, "Error: network, HTTP error, unreadable JUnit file, or events rejected by the ingest API."],
+              [<C key="4">4</C>, "Paused by the control plane (HTTP 423): the connector or the workspace is paused, and the push stops."],
+            ]}
+          />
+          <Table labelledBy="platform" equal
+            head={["Leaves the network", "Stays in the network"]}
+            rows={[
+              [
+                "Test outcomes: run id, service, test id, status, attempt, error class, timestamp, failure message.",
+                "Credentials to the customer's CI, raw logs and artifacts.",
+              ],
+              [
+                "Messages are capped at 500 characters; email addresses are replaced with [redacted-email] at ingest.",
+                "Any field outside the event schema: the ingest API rejects it and never stores it.",
+              ],
             ]}
           />
         </section>
@@ -333,6 +386,71 @@ export function DocsView() {
             pass, and is the right measure for an agent that acts without a person picking the best answer. A run answered by the offline fallback does
             not count as a model pass.
           </P>
+
+          <H3 id="fleet" badge="new">
+            Agent fleet
+          </H3>
+          <P>
+            <A href="/fleet">Agent fleet</A> is the control plane for connectors. Each connector heartbeats every 30 s and pulls its policy: read-only
+            scopes <C>read:ci</C> and <C>read:artifacts</C>, enabled adapters, egress allowlist and redaction rules.
+          </P>
+          <Table labelledBy="fleet"
+            head={["Field", "Values"]}
+            rows={[
+              ["Status", <span key="s"><C>connected</C> heartbeat &lt; 90 s · <C>stale</C> &lt; 4 min · <C>lost</C> ≥ 4 min</span>],
+              ["Version", <span key="v"><C>current</C> at or above the target · <C>behind</C> older but supported · <C>unsupported</C> below the minimum</span>],
+              ["Pause / resume", "Per connector. A paused connector's pushes are rejected with HTTP 423; it keeps heartbeating so it can be resumed."],
+              ["Workspace kill switch", "Rejects pushes from every connector with HTTP 423 until it is turned off. Asks for confirmation."],
+            ]}
+          />
+          <P>
+            In the sandbox the four Kestrel connectors are simulated, and fleet state lives in process memory: it resets on a restart, and hosted instances
+            do not share it.
+          </P>
+
+          <H3 id="audit" badge="new">
+            Audit log
+          </H3>
+          <P>
+            <A href="/audit">Audit log</A> is one feed, newest first, filterable by kind.
+          </P>
+          <Table labelledBy="audit"
+            head={["Kind", "Recorded when", "Contents"]}
+            rows={[
+              [<C key="a">agent.answer</C>, "After every agent answer, in every mode.", "Request id, question (first 200 characters, emails redacted), mode, model, verdict, validation result, revisions, tool calls, latency."],
+              [<C key="h">human.triage_decision</C>, "A reviewer accepts or overrides an item in the triage inbox.", "Decision, action, note (≤ 200 characters, emails redacted). Undo is local and not audited."],
+              [<C key="c">control_plane</C>, "An operator enrols, pauses or resumes a connector, or flips the kill switch.", "Actor, action, target. Read from the fleet's own audit."],
+            ]}
+          />
+          <P>
+            The sandbox keeps the last 500 entries in process memory per instance; they reset on a restart. The agent has no tool that writes here.
+          </P>
+
+          <H3 id="integrations" badge="new">
+            Settings and integrations
+          </H3>
+          <P>
+            <A href="/settings">Settings</A> reports what the running API has: the model chain, data source and counts, rules version and each
+            integration&apos;s status. Nothing on the page is editable, and no credential values or endpoint URLs are shown.
+          </P>
+          <Table labelledBy="integrations"
+            head={["Status", "Meaning"]}
+            rows={[
+              ["Connected", "Live in this deployment."],
+              ["Available", "A script or API exists in this deployment."],
+              ["Example", "A sample file to copy."],
+              ["Documented", "Exists in the repository but not in this deployment's bundle."],
+              ["Not connected", "Off. ReportPortal, Jira, Slack and GitHub Checks write-back stay here because the agent is read-only."],
+              ["Planned", "Not built yet."],
+            ]}
+          />
+
+          <H3 id="workspaces">Multi-workspace</H3>
+          <P>
+            Design only, not implemented. The API serves one workspace, the Kestrel Commerce sandbox. The enterprise model (organization → workspace →
+            connectors, versioned policy, partitioned data, roles with a read-only agent principal) is summarised at the end of{" "}
+            <A href="/architecture">Architecture</A>.
+          </P>
         </section>
 
         <section>
@@ -365,10 +483,21 @@ export function DocsView() {
         </section>
 
         <section>
+          <H2 id="governance">Governance guarantees</H2>
+          <ul className="mt-3 list-disc space-y-1.5 pl-5 text-[14px] leading-relaxed text-muted">
+            <li>Agent tools are read-only, in the web app and over MCP.</li>
+            <li>Control actions (pause, resume, kill switch) are human-only and audited; the agent and the MCP server have no tool for them.</li>
+            <li>The release verdict comes from the policy function, never from the model.</li>
+            <li>The validator checks every answer before it is shown.</li>
+          </ul>
+        </section>
+
+        <section>
           <H2 id="trust">Trust and safety</H2>
           <ul className="mt-3 space-y-2 text-[14px] leading-relaxed text-muted">
             <li>
-              <span className="text-ink">Read-only.</span> The only POST routes ask questions; nothing here can change CI, releases or the dataset.
+              <span className="text-ink">Read-only.</span> Nothing here can change CI, releases or the dataset. Besides questions, POST routes only take
+              connector traffic, operator actions and triage decisions for the audit log.
             </li>
             <li>
               <span className="text-ink">Rules decide.</span> Verdicts come from a tested policy function with its rule and version; the model cannot write
@@ -400,7 +529,7 @@ export function DocsView() {
               ["Why is my test not flaky when it retried?", "If the failed attempt was an infrastructure or dependency error, the retry is a platform signal, not test flakiness (R1)."],
               ["What happens when the model is down?", "A fallback model, then a second provider, then the offline planner answer. The badge and notice say which one did."],
               ["Where do the numbers in an answer come from?", "From tool output only. The validator rejects numbers that do not appear in what the tools returned."],
-              ["Are my triage decisions shared?", "No. Accept and override decisions in the triage inbox are stored in your browser."],
+              ["Are my triage decisions shared?", "They are kept in your browser and copied to the audit log. Undo is local only."],
               ["Can I use this from CI or my editor?", "Yes: the CLI gate returns an exit code for a pipeline step, and the MCP server exposes the read-only tools to IDE assistants."],
               ["Is any of this real customer data?", "No. The workspace is a sandbox with synthetic data generated by a seeded script."],
             ].map(([q, a]) => (

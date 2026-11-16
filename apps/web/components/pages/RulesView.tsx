@@ -4,6 +4,7 @@ import { errorMessage } from "@/lib/api";
 import { useKnowledge, useOverview } from "@/lib/hooks";
 import { EvidenceChip } from "../Evidence";
 import { Card, CardHeader, cx, ErrorBlock, LoadingBlock, Pill, VerdictBadge } from "../ui";
+import { TriagePill } from "../Attempts";
 
 export function RulesView() {
   const { data: k, error, loading, reload } = useKnowledge();
@@ -113,12 +114,13 @@ export function RulesView() {
       </div>
 
       <Card aria-labelledby="tax-title">
-        <CardHeader id="tax-title" title="Failure taxonomy" eyebrow="Error class → category. INFRA and EXTERNAL_DEPENDENCY never count against a test (R1)" />
+        <CardHeader id="tax-title" title="Failure taxonomy" eyebrow="Error class → category → defect type (ReportPortal vocabulary). System issues never count against a test (R1)" />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="label-mono border-b border-line bg-sunken/50 text-left text-[10.5px] text-faint">
               <tr>
                 <th scope="col" className="px-4 py-2 font-medium">Category</th>
+                <th scope="col" className="px-3 py-2 font-medium">Defect type</th>
                 <th scope="col" className="px-3 py-2 font-medium">Error classes</th>
                 <th scope="col" className="px-4 py-2 font-medium">Meaning</th>
               </tr>
@@ -129,6 +131,9 @@ export function RulesView() {
                   <th scope="row" className="whitespace-nowrap px-4 py-3 text-left font-mono text-xs text-accent">
                     {cat}
                   </th>
+                  <td className="whitespace-nowrap px-3 py-3">
+                    {v.triage && k.triage_buckets?.[v.triage] ? <TriagePill code={v.triage} label={k.triage_buckets[v.triage].label} /> : <span className="text-faint">—</span>}
+                  </td>
                   <td className="px-3 py-3">
                     <div className="flex flex-wrap gap-1">
                       {v.classes.map((c) => (

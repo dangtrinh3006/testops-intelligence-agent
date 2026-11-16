@@ -19,6 +19,18 @@ export function Header() {
   const path = usePathname();
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-canvas/90 backdrop-blur-md">
+      <div className="border-b border-line bg-[#100c08] px-4 py-1.5 text-center text-[12px] text-muted">
+        <span className="label-mono mr-2 text-[10px] text-accent">Proof of concept</span>
+        Kestrel Commerce is fictional and every CI record here is synthetic.{" "}
+        <a
+          href="https://github.com/dangtrinh3006/testops-intelligence-agent"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="whitespace-nowrap text-ink underline-offset-4 hover:text-accent hover:underline"
+        >
+          Source on GitHub →
+        </a>
+      </div>
       <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-2.5 px-4 py-3 sm:px-6 lg:px-8">
         <Link href="/" className="flex min-w-0 items-center gap-2.5 rounded-[3px]" aria-label="TestOps Intelligence Agent — console">
           <Logo />
@@ -27,9 +39,6 @@ export function Header() {
             <span className="label-mono truncate text-[10px] text-muted">Intelligence Agent</span>
           </span>
         </Link>
-        <span className="label-mono hidden rounded-[3px] border border-dashed border-accent/60 px-2 py-0.5 text-[10px] text-accent md:inline">
-          Synthetic data · Proof of concept
-        </span>
         <div className="ml-auto flex min-w-0 max-w-full">
           <HealthChip />
         </div>
@@ -52,9 +61,6 @@ export function Header() {
             );
           })}
         </nav>
-      </div>
-      <div className="label-mono border-t border-line bg-accent/[0.08] px-4 py-1 text-center text-[10px] text-accent md:hidden">
-        Synthetic data · Proof of concept
       </div>
     </header>
   );

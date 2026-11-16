@@ -91,6 +91,16 @@ export function FlakyView() {
                   <td className="px-3 py-3 font-mono text-xs text-muted">{t.service_id}</td>
                   <td className="px-3 py-3">
                     <LevelBadge level={t.level} levels={levels} />
+                    {t.confidence === "insufficient_data" && (
+                      <div className="mt-1 font-mono text-[10.5px] text-accent" title={`Fewer than ${t.min_runs} completed runs: treat the level as provisional.`}>
+                        insufficient data · {t.runs_observed}/{t.min_runs} runs
+                      </div>
+                    )}
+                    {t.flip_rate != null && (
+                      <div className="mt-1 font-mono text-[10.5px] text-faint" title="Final-status changes between consecutive runs, oldest first.">
+                        flip rate {pct(t.flip_rate)} · {t.flips} flips
+                      </div>
+                    )}
                     <MixedCommits t={t} />
                   </td>
                   <td className="tabular px-3 py-3 text-right">

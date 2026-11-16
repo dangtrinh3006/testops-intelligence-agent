@@ -1,28 +1,45 @@
 # Expert knowledge layer: how a senior test-platform engineer reads CI evidence.
 # The rules decide; the language model only chooses which evidence to fetch and explains the result.
 # Versioned with the code so every verdict can name the rule (and rule version) that produced it.
-version: "2026.11.0"
+version: "2026.11.1"
 owner: "QA Platform (customer-owned in a pilot)"
+
+# Defect types shown to people (ReportPortal vocabulary); each taxonomy category maps to one.
+triage_buckets:
+  PB: {label: Product Bug, meaning: "The product behaved wrongly; route to the owning dev team."}
+  AB: {label: Automation Bug, meaning: "The test or harness is wrong; route to the test owner."}
+  SI: {label: System Issue, meaning: "Execution platform or a dependency failed; route to platform, never counted against the test."}
+  TI: {label: To Investigate, meaning: "Evidence does not settle the cause; a person decides."}
+
+# Minimum completed runs before a flake level is reported with normal confidence (R3).
+flakiness:
+  min_runs: 5
 
 # Error class -> failure category. Infra and external failures are never counted against a test.
 taxonomy:
   INFRA:
     classes: [SessionProvisioningTimeout, DeviceAllocationFailed, TunnelDisconnected, RunnerOOMKilled, ArtifactUploadFailed, ConcurrencyQuotaExceeded]
+    triage: SI
     meaning: "Execution platform failed before or around the test; the product was not exercised reliably."
   EXTERNAL_DEPENDENCY:
     classes: [ConnectionResetError, UpstreamTimeout, SandboxUnavailable]
+    triage: SI
     meaning: "A third-party or partner sandbox misbehaved; retry-eligible, tracked per dependency."
   PRODUCT_ASSERTION:
     classes: [AssertionError]
+    triage: PB
     meaning: "The product returned a wrong result. Strongest signal of a real regression."
   TIMING:
     classes: [TimeoutError]
+    triage: TI
     meaning: "Time-dependent behaviour (TTL, polling, async); classic source of genuine nondeterminism."
   MODEL_QUALITY:
     classes: [EvalScoreBelowThreshold]
+    triage: TI
     meaning: "LLM evaluation score under threshold; expected variance unless it repeats on the same input."
   TEST_CODE:
     classes: [ElementNotInteractable, NoSuchElement, StaleElementReference]
+    triage: AB
     meaning: "Locator or test-harness problem; usually fixed in the test, not the product."
 
 rules:

@@ -26,6 +26,20 @@ def category(error_class: str | None) -> str | None:
     return "UNCLASSIFIED"
 
 
+def triage(error_class: str | None) -> dict | None:
+    """ReportPortal-style defect type for an error class; unknown classes go to To Investigate."""
+    cat = category(error_class)
+    if cat is None:
+        return None
+    k = knowledge()
+    code = k["taxonomy"].get(cat, {}).get("triage", "TI")
+    return {"code": code, "label": k["triage_buckets"][code]["label"]}
+
+
+def min_flake_runs() -> int:
+    return int(knowledge().get("flakiness", {}).get("min_runs", 5))
+
+
 def quarantine_entry(test_id: str, as_of: date) -> dict | None:
     """Active or expired quarantine entry for a test; `active` says whether it still applies."""
     for q in knowledge()["quarantine"]:

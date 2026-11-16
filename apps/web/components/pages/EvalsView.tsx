@@ -101,7 +101,7 @@ function Reports({ report }: { report: EvalReport }) {
                   selected ? "border-accent/60 bg-accent/10 text-accent" : "border-transparent text-muted hover:bg-sunken hover:text-ink",
                 )}
               >
-                {REPORT_LABEL[key] ?? key} <span className="tabular font-mono text-xs opacity-80">{r.summary?.flaky != null ? `${r.summary.stable ?? c.passed} stable · ${r.summary.flaky} flaky · ${r.summary.failing ?? 0} failing` : `${c.passed}/${c.total}`}</span>
+                {REPORT_LABEL[key] ?? key} <span className="tabular font-mono text-xs opacity-80">{(r.repeat ?? 1) > 1 ? `pass^${r.repeat} ${r.summary?.stable ?? c.passed}/${c.total} · ${r.summary?.flaky ?? 0} flaky` : `${c.passed}/${c.total}`}</span>
               </button>
             );
           })}
@@ -125,12 +125,21 @@ function Report({ run }: { run: EvalRun }) {
   const { passed, total } = countCases(run);
   const rate = total > 0 ? passed / total : null;
   const mode = asMode(run.mode);
+  const k = run.repeat ?? 1;
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-[4px] border border-line bg-surface p-4">
-          <div className="label-mono text-[10.5px] text-faint">Pass rate</div>
+          <div className="label-mono text-[10.5px] text-faint" title={k > 1 ? `pass^${k}: share of cases that pass on all ${k} runs (τ-bench reliability metric)` : undefined}>
+            {k > 1 ? (
+              <>
+                pass<sup>{k}</sup> · all {k} runs pass
+              </>
+            ) : (
+              "Pass rate"
+            )}
+          </div>
           <div className={cx("tabular mt-2 font-serif text-[34px] leading-none tracking-[-0.02em]", rate === 1 ? "text-ship" : "text-ink")}>
             {rate == null ? "—" : `${Math.round(rate * 1000) / 10}%`}
           </div>
@@ -139,7 +148,7 @@ function Report({ run }: { run: EvalRun }) {
             {run.summary?.run_pass_rate != null && (run.repeat ?? 1) > 1 && (
               <>
                 {" · "}
-                {Math.round(run.summary.run_pass_rate * 1000) / 10}% of {total * (run.repeat ?? 1)} runs · {run.summary.stable ?? 0} stable,{" "}
+                pass@1 {Math.round(run.summary.run_pass_rate * 1000) / 10}% of {total * (run.repeat ?? 1)} runs · {run.summary.stable ?? 0} stable,{" "}
                 {run.summary.flaky ?? 0} flaky, {run.summary.failing ?? 0} failing
               </>
             )}

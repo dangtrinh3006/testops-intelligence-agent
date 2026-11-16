@@ -161,12 +161,15 @@ export interface Timestamp {
   format: string;
 }
 
+export type TriageCode = "PB" | "AB" | "SI" | "TI";
+
 export interface AttemptView {
   attempt_id: string;
   attempt: number;
   status: string;
   error_class: string | null;
   category: string | null;
+  triage?: { code: TriageCode; label: string } | null;
   message: string | null;
   started_utc: string | null;
   finished_utc: string | null;
@@ -333,6 +336,10 @@ export interface FlakyTest {
   retry_attempts_without_duration: number;
   evidence: string[];
   first_attempt_failure_rate: number;
+  flips?: number;
+  flip_rate?: number;
+  min_runs?: number;
+  confidence?: "ok" | "insufficient_data";
 }
 
 export interface CostScenario {
@@ -406,7 +413,8 @@ export interface KnowledgeGate {
 export interface Knowledge {
   version: string;
   owner?: string;
-  taxonomy: Record<string, { classes: string[]; meaning: string }>;
+  taxonomy: Record<string, { classes: string[]; meaning: string; triage?: TriageCode }>;
+  triage_buckets?: Record<TriageCode, { label: string; meaning: string }>;
   rules: KnowledgeRule[];
   release_gate: KnowledgeGate;
   quarantine?: { test_id: string; owner: string; reason: string; expires: string }[];

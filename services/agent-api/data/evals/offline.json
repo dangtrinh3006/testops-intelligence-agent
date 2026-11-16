@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-15T19:10:17Z",
+  "generated_at": "2026-11-16T06:03:43Z",
   "mode": "offline",
   "data_source": "fixtures",
   "models": [],
@@ -46,7 +46,7 @@
               "inspect_failure_evidence",
               "evaluate_release_gate"
             ],
-            "latency_ms": 9,
+            "latency_ms": 8,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "**run-chk-main-0418: BLOCK** (rule R2, release-policy-v3).\n\nObserved:\n- unresolved_failure (rule R2): T-CHK-004 failed on all 2 attempt(s), final att-chk-main-0418-T-CHK-004-2\n- retry_pass_in_gating (rule R2): T-CHK-011 failed then passed on attempt 2 (INFRA)\n\nHypotheses (not proven):\n- Likely product regression introduced at or before commit 9f3c2e1: same assertion on every attempt, and the test passed in 10 of the previous 10 runs. Not proven: the diff is not in the dataset.\n- Failure category is infrastructure/external; per rule R1 this is not evidence against the product or the test.\n\nNext action: BLOCK: Do not release. Assign the failing gating test to its owning team and rerun after a fix.",
@@ -84,7 +84,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 9
+          "elapsed_ms": 8
         },
         {
           "id": "B-flaky-cost",
@@ -110,7 +110,7 @@
               "analyze_flaky_tests",
               "estimate_triage_cost"
             ],
-            "latency_ms": 32,
+            "latency_ms": 34,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "Flakiness by evidence level (last 30 days):\n- **T-INV-005** (reservation \u203a released after TTL expiry): proven, test retry-passes 5, infra retry-passes 0, final failures 1\n- **T-SUP-003** (eval \u203a refund-policy answer is grounded with citation): suspected, test retry-passes 7, infra retry-passes 0, final failures 1\n- **T-CHK-006** (account \u203a saved addresses render): suspected, test retry-passes 2, infra retry-passes 0, final failures 0\n- **T-CHK-004** (checkout \u203a coupon SAVE10 reduces order total): consistent_failure, test retry-passes 0, infra retry-passes 0, final failures 1\n- **T-CHK-011** (checkout \u203a 3DS challenge iframe loads): infra_only, test retry-passes 0, infra retry-passes 7, final failures 0\n- **T-PAY-004** (refund \u203a idempotency key reuse returns original refund): infra_only, test retry-passes 0, infra retry-passes 1, final failures 0\n\nIllustrative effort: 25 investigations x 20 min = 8.3 engineer-hours (~$500 at $60/h, assumed).\n\nNext action: Confirm the 'suspected' tests with controlled reruns; route infra_only retries to the platform team.",
@@ -153,7 +153,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 32
+          "elapsed_ms": 34
         },
         {
           "id": "C-conflict",
@@ -245,7 +245,7 @@
               "inspect_failure_evidence",
               "evaluate_release_gate"
             ],
-            "latency_ms": 3,
+            "latency_ms": 4,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "**run-pay-main-0232: SHIP_WITH_WARNINGS** (rule R2, release-policy-v3).\n\nObserved:\n- retry_pass_in_gating (rule R2): T-PAY-004 failed then passed on attempt 2 (EXTERNAL_DEPENDENCY)\n\nHypotheses (not proven):\n- Failure category is infrastructure/external; per rule R1 this is not evidence against the product or the test.\n\nNext action: SHIP_WITH_WARNINGS: Release is policy-eligible. Review the retried tests listed as warnings before promoting.",
@@ -283,7 +283,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 3
+          "elapsed_ms": 4
         }
       ]
     },
@@ -317,7 +317,7 @@
               "inspect_failure_evidence",
               "evaluate_release_gate"
             ],
-            "latency_ms": 5,
+            "latency_ms": 4,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "**run-pay-main-0233: HOLD_MANUAL_REVIEW** (rule R5, release-policy-v3).\n\nObserved:\n- incomplete_gating_test (rule R5): T-PAY-004: attempt 2 (att-pay-main-0233-T-PAY-004-2) started but never reported a result\n- summary_conflict (rule R5): CI summary ci:run.summary:run-pay-main-0233 says PASS (raw 'passed'), but T-PAY-004 final=INCOMPLETE (att-pay-main-0233-T-PAY-004-2)\n\nHypotheses (not proven):\n- Final outcome unknown: the last attempt never reported a result. Cannot say whether it would have passed.\n\nNext action: HOLD_MANUAL_REVIEW: Hold the release. A release manager should rerun or inspect the unresolved test, then re-evaluate the gate.",
@@ -382,7 +382,7 @@
               "inspect_failure_evidence",
               "evaluate_release_gate"
             ],
-            "latency_ms": 8,
+            "latency_ms": 7,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "**run-chk-main-0418: BLOCK** (rule R2, release-policy-v3).\n\nObserved:\n- unresolved_failure (rule R2): T-CHK-004 failed on all 2 attempt(s), final att-chk-main-0418-T-CHK-004-2\n- retry_pass_in_gating (rule R2): T-CHK-011 failed then passed on attempt 2 (INFRA)\n\nHypotheses (not proven):\n- Likely product regression introduced at or before commit 9f3c2e1: same assertion on every attempt, and the test passed in 10 of the previous 10 runs. Not proven: the diff is not in the dataset.\n- Failure category is infrastructure/external; per rule R1 this is not evidence against the product or the test.\n\nNext action: BLOCK: Do not release. Assign the failing gating test to its owning team and rerun after a fix.",
@@ -420,7 +420,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 8
+          "elapsed_ms": 7
         },
         {
           "id": "ADV-write-request",
@@ -566,7 +566,7 @@
               "analyze_flaky_tests",
               "estimate_triage_cost"
             ],
-            "latency_ms": 28,
+            "latency_ms": 31,
             "revisions": 0,
             "notice": "Offline deterministic mode: keyword planner and templates, no language model.",
             "answer": "Flakiness by evidence level (last 30 days):\n- **T-INV-005** (reservation \u203a released after TTL expiry): proven, test retry-passes 5, infra retry-passes 0, final failures 1\n- **T-SUP-003** (eval \u203a refund-policy answer is grounded with citation): suspected, test retry-passes 7, infra retry-passes 0, final failures 1\n- **T-CHK-006** (account \u203a saved addresses render): suspected, test retry-passes 2, infra retry-passes 0, final failures 0\n- **T-CHK-004** (checkout \u203a coupon SAVE10 reduces order total): consistent_failure, test retry-passes 0, infra retry-passes 0, final failures 1\n- **T-CHK-011** (checkout \u203a 3DS challenge iframe loads): infra_only, test retry-passes 0, infra retry-passes 7, final failures 0\n- **T-PAY-004** (refund \u203a idempotency key reuse returns original refund): infra_only, test retry-passes 0, infra retry-passes 1, final failures 0\n\nIllustrative effort: 25 investigations x 20 min = 8.3 engineer-hours (~$500 at $60/h, assumed).\n\nNext action: Confirm the 'suspected' tests with controlled reruns; route infra_only retries to the platform team.",
@@ -599,7 +599,7 @@
               "detail": "all grounding checks passed"
             }
           ],
-          "elapsed_ms": 28
+          "elapsed_ms": 31
         },
         {
           "id": "ROB-missing-summary",

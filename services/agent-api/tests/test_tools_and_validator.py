@@ -89,3 +89,23 @@ def test_validator_ignores_negated_verdict_words_and_accepts_listed_policy_verdi
     claims = [{"text": "latest checkout run", "evidence": ["run-chk-main-0418"]}]
     v = validate("The latest checkout run has a BLOCK verdict.", claims, listing, ds, {})
     assert v["passed"], v
+
+
+def test_failures_carry_a_reportportal_defect_type(ds):
+    from app.domain.knowledge import triage
+    assert triage("AssertionError") == {"code": "PB", "label": "Product Bug"}
+    assert triage("SessionProvisioningTimeout")["code"] == "SI"
+    assert triage("NoSuchElement")["code"] == "AB"
+    assert triage("SomethingNew")["code"] == "TI"  # unknown classes are never guessed into a bucket
+    assert triage(None) is None
+    out = run_tool(ds, "get_run_details", {"run_id": "run-chk-main-0418"})
+    attempts = [a for t in out["tests_needing_attention"] for a in t["attempts"] if a["error_class"]]
+    assert attempts and all(a["triage"]["code"] in {"PB", "AB", "SI", "TI"} for a in attempts)
+
+
+def test_flaky_output_is_transparent_about_flips_and_sample_size(ds):
+    tests = run_tool(ds, "analyze_flaky_tests", {})["tests"]
+    assert tests
+    for t in tests:
+        assert 0.0 <= t["flip_rate"] <= 1.0
+        assert t["confidence"] == ("ok" if t["runs_observed"] >= t["min_runs"] else "insufficient_data")

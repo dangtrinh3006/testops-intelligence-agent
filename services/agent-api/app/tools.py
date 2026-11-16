@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from .domain import cost, flaky, gate
 from .domain.evidence import TestOutcome, run_outcomes
-from .domain.knowledge import category, knowledge
+from .domain.knowledge import category, knowledge, triage
 from .etl import Dataset, attempt_dict
 
 MAX_RUNS = 20
@@ -94,7 +94,7 @@ def _outcome_view(o: TestOutcome) -> dict:
         "resolution": o.resolution, "failure_categories": o.failure_categories, "final_attempt_id": o.final_attempt_id,
         "attempts": [
             {"attempt_id": a.attempt_id, "attempt": a.attempt_no, "status": a.status or "NO_RESULT",
-             "error_class": a.error_class, "category": category(a.error_class),
+             "error_class": a.error_class, "category": category(a.error_class), "triage": triage(a.error_class),
              "message": a.message, "started_utc": a.started.iso(), "finished_utc": a.finished.iso(),
              "duration_s": a.duration_s}
             for a in o.attempts
@@ -209,7 +209,8 @@ def evaluate_release_gate(ds: Dataset, a: RunArgs) -> dict:
 def analyze_flaky_tests(ds: Dataset, a: FlakyArgs) -> dict:
     sid = _service(ds, a.service_id)
     r = flaky.analyze(ds, sid, a.lookback_days)
-    tests = [{**asdict(t), "first_attempt_failure_rate": t.first_attempt_failure_rate} for t in r["tests"]]
+    tests = [{**asdict(t), "first_attempt_failure_rate": t.first_attempt_failure_rate,
+              "flip_rate": t.flip_rate, "confidence": t.confidence} for t in r["tests"]]
     return {"scope": r["scope"], "tests": tests, "totals": r["totals"], "data_handling": r["data_handling"],
             "levels": knowledge()["rules"][2]["levels"],
             "evidence": [t["test_id"] for t in tests] + [e for t in tests for e in t["evidence"][:4]] + [f.id for f in ds.findings if f.kind == "DUPLICATE_EVENT"],

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useHealth, useOverview } from "@/lib/hooks";
 import { buttonClass, Eyebrow, Skeleton } from "../ui";
 import { RUN_PRESET_EVENT } from "./Console";
+import { HeroConsole } from "./HeroConsole";
 
 const fmt = (n: number | undefined) => (n == null ? null : n.toLocaleString("en-US"));
 
@@ -15,20 +16,39 @@ export function Hero() {
 
   return (
     <section aria-labelledby="hero-title" className="pb-12 pt-4 sm:pb-16 sm:pt-8">
-      <Eyebrow className="mb-6">Kestrel Commerce · Release console</Eyebrow>
-      <h1 id="hero-title" className="max-w-4xl font-serif text-[38px] leading-[1.06] tracking-[-0.03em] text-ink sm:text-[56px] lg:text-[68px]">
-        A Digital TestOps Engineer for <em className="italic text-accent">release decisions</em>.
-      </h1>
-      <p className="mt-6 max-w-2xl font-serif text-[20px] leading-relaxed text-muted sm:text-[22px]">
-        Rules decide. The model explains. Every claim links to a record.
-      </p>
-      <div className="mt-8 flex flex-wrap items-center gap-3">
-        <button type="button" onClick={runC} className={buttonClass("primary", "md")}>
-          Run scenario C <span aria-hidden>→</span>
-        </button>
-        <Link href="/architecture" className={buttonClass("secondary", "md")}>
-          How it works
-        </Link>
+      <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
+        <div className="min-w-0">
+          <Eyebrow className="mb-6">Kestrel Commerce · Release console</Eyebrow>
+          <h1 id="hero-title" className="font-serif text-[40px] leading-[1.04] tracking-[-0.03em] text-ink sm:text-[56px] lg:text-[60px]">
+            A Digital TestOps Engineer for <em className="italic text-accent">release decisions</em>.
+          </h1>
+          <p className="mt-6 max-w-xl font-serif text-[19px] leading-relaxed text-muted sm:text-[21px]">
+            <span className="text-ink">Rules decide. The model explains.</span> Every claim links to a record, and every answer is checked before
+            you see it.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <button type="button" onClick={runC} className={buttonClass("primary", "md")}>
+              Run scenario C <span aria-hidden>→</span>
+            </button>
+            <Link href="/architecture" className={buttonClass("secondary", "md")}>
+              How it works
+            </Link>
+          </div>
+          <dl className="mt-10 grid max-w-md grid-cols-3 gap-4 border-t border-line pt-5">
+            {[
+              ["8", "read-only tools"],
+              ["R1–R6", "versioned rules"],
+              ["5", "checks per answer"],
+            ].map(([n, l]) => (
+              <div key={l}>
+                <dt className="sr-only">{l}</dt>
+                <dd className="font-serif text-[26px] leading-none text-ink">{n}</dd>
+                <dd className="label-mono mt-2 text-[10px] text-faint">{l}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <HeroConsole onRunLive={runC} />
       </div>
       <Layers />
     </section>

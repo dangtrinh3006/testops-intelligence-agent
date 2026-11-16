@@ -5,11 +5,12 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from itertools import pairwise
 
 from app.etl import Dataset
 
 from .evidence import run_outcomes
-from .knowledge import NON_TEST_CATEGORIES, category
+from .knowledge import NON_TEST_CATEGORIES, category, min_flake_runs
 
 LEVEL_ORDER = {"proven": 0, "suspected": 1, "possible": 2, "consistent_failure": 3, "infra_only": 4}
 
@@ -31,7 +32,18 @@ class TestFlakiness:
     error_classes: list[str]
     retry_minutes_measured: float  # CI time spent on attempts >= 2 (measured durations only)
     retry_attempts_without_duration: int
+    flips: int  # final-status changes between consecutive runs, oldest first
+    min_runs: int
     evidence: list[str] = field(default_factory=list)
+
+    @property
+    def flip_rate(self) -> float:
+        return round(self.flips / (self.runs_observed - 1), 3) if self.runs_observed > 1 else 0.0
+
+    @property
+    def confidence(self) -> str:
+        """Below the minimum run count the level is still reported, but flagged so nobody reads it as settled."""
+        return "ok" if self.runs_observed >= self.min_runs else "insufficient_data"
 
     @property
     def first_attempt_failure_rate(self) -> float:
@@ -45,15 +57,16 @@ def analyze(ds: Dataset, service_id: str | None = None, lookback_days: int = 30)
 
     per_test: dict[str, dict] = defaultdict(lambda: {
         "runs": 0, "first_fail": 0, "rp_test": 0, "rp_infra": 0, "rp_infra_final": 0, "final_fail": 0, "incomplete": 0,
-        "commits": defaultdict(set), "classes": set(), "retry_s": 0.0, "retry_missing": 0, "evidence": [],
+        "commits": defaultdict(set), "classes": set(), "retry_s": 0.0, "retry_missing": 0, "evidence": [], "seq": [],
     })
-    for run in sorted(runs, key=lambda r: r.run_id):
+    for run in sorted(runs, key=lambda r: (r.queued.utc, r.run_id)):
         for o in run_outcomes(ds, run):
             t = per_test[o.test_id]
             if o.final_status == "INCOMPLETE":
                 t["incomplete"] += 1  # unknown outcome: excluded from rates, never guessed
                 continue
             t["runs"] += 1
+            t["seq"].append(o.final_status)
             t["commits"][run.commit].add(o.final_status)
             first = o.attempts[0]
             if first.status in ("FAIL", "ERROR"):
@@ -99,7 +112,8 @@ def analyze(ds: Dataset, service_id: str | None = None, lookback_days: int = 30)
         results.append(TestFlakiness(
             test_id, meta.get("name", test_id), meta.get("service_id", "?"), meta.get("suite", "?"), t["runs"], t["first_fail"],
             t["rp_test"], t["rp_infra"], t["final_fail"], t["incomplete"], mixed, level, sorted(t["classes"]),
-            round(t["retry_s"] / 60, 1), t["retry_missing"], t["evidence"][:12],
+            round(t["retry_s"] / 60, 1), t["retry_missing"],
+            sum(1 for a, b in pairwise(t["seq"]) if a != b), min_flake_runs(), t["evidence"][:12],
         ))
     results.sort(key=lambda r: (LEVEL_ORDER[r.level], -r.retry_passes_test - r.retry_passes_infra, r.test_id))
 

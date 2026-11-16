@@ -53,6 +53,7 @@ function AttemptRow({ a, last, compact }: { a: AttemptView; last: boolean; compa
             {status}
           </Pill>
           {a.error_class && <span className="font-mono text-xs text-ink">{a.error_class}</span>}
+          {a.triage && <TriagePill code={a.triage.code} label={a.triage.label} />}
           {a.category && <Pill mono>{a.category}</Pill>}
         </div>
         {a.message && <p className="mt-1 font-mono text-[11.5px] text-muted">“{a.message}”</p>}
@@ -153,5 +154,25 @@ export function UntrustedLog({
         {text}
       </blockquote>
     </figure>
+  );
+}
+
+const TRIAGE_STYLE: Record<string, string> = {
+  PB: "border-block/45 bg-block/10 text-block",
+  AB: "border-violet/45 bg-violet/10 text-violet",
+  SI: "border-warn/45 bg-warn/10 text-warn",
+  TI: "border-accent/45 bg-accent/10 text-accent",
+};
+
+/** ReportPortal-style defect type: the short code carries the colour, the label explains it. */
+export function TriagePill({ code, label }: { code: string; label: string }) {
+  return (
+    <span
+      title={`Defect type: ${label}`}
+      className={cx("inline-flex items-center gap-1 rounded-[3px] border px-1.5 py-px font-mono text-[10.5px] uppercase tracking-[0.06em]", TRIAGE_STYLE[code] ?? TRIAGE_STYLE.TI)}
+    >
+      <b className="font-semibold">{code}</b>
+      <span className="normal-case tracking-normal opacity-90">{label}</span>
+    </span>
   );
 }

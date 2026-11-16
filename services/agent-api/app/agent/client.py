@@ -13,6 +13,9 @@ import httpx
 
 from .llm import ModelConfig
 
+RETRYABLE = {429, 500, 502, 503, 504}
+MAX_BACKOFF_S = 6.0
+
 
 class ModelError(RuntimeError):
     def __init__(self, status: int | None, message: str):
@@ -37,8 +40,8 @@ def chat(cfg: ModelConfig, model: str, messages: list[dict], tools: list[dict] |
             raise ModelError(None, "timeout") from None
         except httpx.HTTPError as e:
             raise ModelError(None, type(e).__name__) from None
-        if r.status_code == 429 and attempt == 0:
-            time.sleep(4)  # one short backoff for free-tier rate limits, then fail over
+        if r.status_code in RETRYABLE and attempt == 0:
+            time.sleep(_backoff(r))  # one in-place retry is cheaper than failing over and restarting the run
             continue
         if r.status_code >= 400:
             try:
@@ -53,3 +56,11 @@ def chat(cfg: ModelConfig, model: str, messages: list[dict], tools: list[dict] |
             msg["content"] = ""
         return {"message": msg, "usage": data.get("usage", {})}
     raise ModelError(429, "rate limited")
+
+
+def _backoff(r: httpx.Response) -> float:
+    try:
+        hinted = float(r.headers.get("retry-after", ""))
+    except ValueError:
+        hinted = 4.0 if r.status_code == 429 else 2.0
+    return max(0.5, min(hinted, MAX_BACKOFF_S))

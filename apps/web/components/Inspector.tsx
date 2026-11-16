@@ -83,7 +83,7 @@ function Drawer({ id, depth, onClose, onBack }: { id: string; depth: number; onC
 
   return (
     <div className="fixed inset-0 z-40">
-      <div aria-hidden className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onClick={onClose} />
+      <div aria-hidden className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div
         ref={panel}
         role="dialog"
@@ -91,7 +91,7 @@ function Drawer({ id, depth, onClose, onBack }: { id: string; depth: number; onC
         aria-labelledby="inspector-title"
         className="absolute inset-0 flex flex-col overflow-y-auto bg-surface shadow-[0_0_60px_rgba(0,0,0,0.6)] sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[min(640px,92vw)] sm:border-l sm:border-line-strong"
       >
-        <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur">
+        <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-surface px-4 py-3">
           <span aria-hidden className="h-8 w-px shrink-0 bg-accent" />
           {depth > 1 && (
             <button type="button" onClick={onBack} className={buttonClass("ghost")} aria-label="Back to previous record">

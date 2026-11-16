@@ -285,7 +285,7 @@ export function Console() {
         </div>
         {run.status !== "idle" && (
           <div className="mb-4">
-            <LiveTrace key={run.startedAt} events={run.events} running={run.status === "loading"} startedAt={run.startedAt} />
+            <LiveTrace key={run.startedAt} events={run.events} running={run.status === "loading"} startedAt={run.startedAt} res={run.status === "done" ? run.res : undefined} />
           </div>
         )}
         {run.status === "loading" && run.events.length === 0 && <LoadingCard key={run.seq} mode={run.req.mode} />}
@@ -307,7 +307,7 @@ function LoadingCard({ mode }: { mode: Mode }) {
   const [startedAt] = useState(() => Date.now());
   const [now, setNow] = useState(startedAt);
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 250);
+    const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
   const s = Math.max(0, (now - startedAt) / 1000);

@@ -3,6 +3,7 @@ import type {
   AskResponse,
   DataQualityResponse,
   EvalReport,
+  TestHistory,
   FlakyResponse,
   Health,
   Knowledge,
@@ -105,6 +106,8 @@ export const api = {
   dataQuality: (signal?: AbortSignal) => request<DataQualityResponse>("/api/data-quality", { signal }),
   knowledge: (signal?: AbortSignal) => request<Knowledge>("/api/knowledge", { signal }),
   evals: (signal?: AbortSignal) => request<EvalReport>("/api/evals", { signal }),
+  testHistory: (serviceId: string, limit = 40, signal?: AbortSignal) =>
+    request<TestHistory>(`/api/test-history?service_id=${encodeURIComponent(serviceId)}&limit=${limit}`, { signal }),
   run: (runId: string, signal?: AbortSignal) =>
     request<RunResponse>(`/api/runs/${encodeURIComponent(runId)}`, { signal }),
   record: async (id: string, signal?: AbortSignal): Promise<RecordResponse> => {

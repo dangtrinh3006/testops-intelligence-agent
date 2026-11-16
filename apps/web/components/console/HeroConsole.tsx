@@ -87,7 +87,7 @@ export function HeroConsole({ onRunLive }: { onRunLive: () => void }) {
   const ticking = startedAt != null && !reduced && shown < lines.length;
   useEffect(() => {
     if (!ticking) return;
-    const id = window.setInterval(() => setNow(Date.now()), 150);
+    const id = window.setInterval(() => setNow(Date.now()), STEP_MS); // re-render only when a new line is due
     return () => window.clearInterval(id);
   }, [ticking]);
 
@@ -105,7 +105,7 @@ export function HeroConsole({ onRunLive }: { onRunLive: () => void }) {
   return (
     <figure
       aria-label="Replayed agent run for scenario C"
-      className="overflow-hidden rounded-[6px] border border-line-strong bg-[#100c08] shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,184,74,0.04)]"
+      className="overflow-hidden rounded-[6px] border border-line-strong bg-[#100c08] shadow-[0_12px_32px_-16px_rgba(0,0,0,0.7)]"
     >
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2.5">
         <span aria-hidden className="flex gap-1.5">

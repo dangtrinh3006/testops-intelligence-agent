@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { StreamEvent } from "@/lib/stream";
+import type { AskResponse } from "@/lib/types";
+import { TraceWaterfall } from "./TraceWaterfall";
 
 // Live view of one agent run: the LangGraph nodes light up as real node updates arrive over SSE.
 
@@ -76,11 +78,13 @@ function line(e: StreamEvent): { node: string; text: string; tone?: "ok" | "bad"
   }
 }
 
-export function LiveTrace({ events, running, startedAt }: { events: StreamEvent[]; running: boolean; startedAt: number | null }) {
+export function LiveTrace({ events, running, startedAt, res }: { events: StreamEvent[]; running: boolean; startedAt: number | null; res?: AskResponse }) {
   const [now, setNow] = useState(() => performance.now());
+  const [view, setView] = useState<"log" | "waterfall">("log");
+  const showWaterfall = !running && !!res && view === "waterfall";
   useEffect(() => {
     if (!running) return;
-    const id = window.setInterval(() => setNow(performance.now()), 250);
+    const id = window.setInterval(() => setNow(performance.now()), 1000); // one DOM update per second keeps assistive tech cheap
     return () => window.clearInterval(id);
   }, [running]);
 
@@ -101,7 +105,22 @@ export function LiveTrace({ events, running, startedAt }: { events: StreamEvent[
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted">
         <span className="text-accent">Agent run</span>
         <span>{streaming?.streaming === false ? "recorded / deterministic trace" : "live · LangGraph node updates over SSE"}</span>
-        <span className="ml-auto tabular-nums">{elapsed.toFixed(1)} s</span>
+        <span className="ml-auto tabular-nums">{elapsed.toFixed(running ? 0 : 1)} s</span>
+        {!running && res && (
+          <span role="group" aria-label="Trace view" className="flex overflow-hidden rounded-[3px] border border-line normal-case tracking-normal">
+            {(["log", "waterfall"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                onClick={() => setView(v)}
+                className={`px-2 py-0.5 text-[11px] transition-colors ${view === v ? "bg-accent/15 text-accent" : "text-muted hover:text-ink"}`}
+              >
+                {v === "log" ? "Log" : "Waterfall"}
+              </button>
+            ))}
+          </span>
+        )}
       </div>
       <ol className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4" aria-label="Graph nodes">
         {NODES.map((n, i) => {
@@ -119,6 +138,9 @@ export function LiveTrace({ events, running, startedAt }: { events: StreamEvent[
           );
         })}
       </ol>
+      {showWaterfall && res ? (
+        <TraceWaterfall events={events} res={res} />
+      ) : (
       <ol className="max-h-72 overflow-y-auto px-4 py-3 font-mono text-[12px] leading-relaxed" aria-live="polite">
         {visible.length === 0 && <li className="text-faint">Waiting for the first node update…</li>}
         {visible.map((e, i) => {
@@ -134,6 +156,7 @@ export function LiveTrace({ events, running, startedAt }: { events: StreamEvent[
         })}
         {running && <li className="mt-1 text-faint">… model thinking (keep-alive every 5 s)</li>}
       </ol>
+      )}
     </section>
   );
 }

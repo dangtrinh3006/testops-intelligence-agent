@@ -11,12 +11,13 @@ import time
 import uuid
 from collections import defaultdict, deque
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .agent import graph as _graph  # noqa: F401 - import LangGraph at cold start, not inside the first request
 from .agent.llm import candidates, model_config
 from .agent.service import PRESETS, ask, ask_stream
+from .domain import history
 from .domain.knowledge import knowledge
 from .schemas import AskRequest, AskResponse
 from .store import DATA_DIR, DataUnavailable, dataset
@@ -194,6 +195,14 @@ def flaky_report(service_id: str | None = None, lookback_days: int = 30):
                 "cost": run_tool(ds, "estimate_triage_cost", {"service_id": service_id, "lookback_days": lookback_days})}
     except ToolError as e:
         raise HTTPException(400, {"error": e.code, "message": e.message}) from None
+
+
+@app.get("/api/test-history")
+def test_history(service_id: str = "checkout-web", limit: int = Query(40, ge=1, le=60)):
+    ds, _ = _ds()
+    if service_id not in {s["id"] for s in ds.catalog["services"]}:
+        raise HTTPException(404, {"error": "not_found", "message": f"Unknown service '{service_id}'."})
+    return history.test_history(ds, service_id, limit)
 
 
 @app.get("/api/data-quality")

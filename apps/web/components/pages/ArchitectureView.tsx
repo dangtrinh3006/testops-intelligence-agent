@@ -7,6 +7,7 @@ import { useOverview, useRun } from "@/lib/hooks";
 import { useApi } from "@/lib/useApi";
 import { EvidenceChip, LinkifiedText } from "../Evidence";
 import { buttonClass, Card, cx, ModeBadge, Numeral, Pill, SectionHeading, Skeleton, statusTone, VerdictBadge } from "../ui";
+import { RequestLifecycle } from "./RequestLifecycle";
 
 const LINEAGE_RUN = "run-pay-main-0233";
 const LINEAGE_EVENT = `ci:run.summary:${LINEAGE_RUN}`;
@@ -25,6 +26,7 @@ const TOOLS = [
 export function ArchitectureView() {
   return (
     <div className="space-y-24">
+      <RequestLifecycle />
       <SystemDiagram />
       <Lineage />
       <AgentLoop />

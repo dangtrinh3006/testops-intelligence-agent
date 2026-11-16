@@ -9,6 +9,7 @@ const NAV = [
   { href: "/", label: "Console" },
   { href: "/architecture", label: "Architecture" },
   { href: "/pilot", label: "Pilot" },
+  { href: "/history", label: "Test history" },
   { href: "/flaky", label: "Flaky tests" },
   { href: "/data-quality", label: "Data quality" },
   { href: "/evals", label: "Agent evals" },
@@ -18,7 +19,7 @@ const NAV = [
 export function Header() {
   const path = usePathname();
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-canvas/90 backdrop-blur-md">
+    <header className="sticky top-0 z-30 border-b border-line bg-canvas">
       <div className="border-b border-line bg-[#100c08] px-4 py-1.5 text-center text-[12px] text-muted">
         <span className="label-mono mr-2 text-[10px] text-accent">Proof of concept</span>
         Kestrel Commerce is fictional and every CI record here is synthetic.{" "}

@@ -472,3 +472,35 @@ export interface EvalRun {
 export interface EvalReport extends EvalRun {
   reports?: Record<string, EvalRun>;
 }
+
+// ---------- /api/test-history ----------
+export type HistoryState = "pass" | "retry_pass" | "retry_pass_infra" | "fail" | "fail_infra" | "incomplete";
+
+export interface HistoryCell {
+  state: HistoryState;
+  attempts: number;
+  attempt_id: string;
+  error_class: string | null;
+  triage: { code: TriageCode; label: string } | null;
+}
+
+export interface HistoryRun {
+  run_id: string;
+  run_number: number;
+  pipeline_id: string;
+  commit: string;
+  branch: string;
+  queued_utc: string | null;
+  summary_status: string | null;
+  verdict: Verdict;
+  deciding_rule: string;
+}
+
+export interface TestHistory {
+  service_id: string;
+  services: string[];
+  runs: HistoryRun[];
+  tests: { test_id: string; name: string; suite: string; kind: string | null }[];
+  cells: Record<string, (HistoryCell | null)[]>;
+  states: Record<HistoryState, string>;
+}

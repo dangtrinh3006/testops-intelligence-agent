@@ -78,3 +78,20 @@ def test_stream_endpoint_emits_trace_then_final():
 
 def test_stream_endpoint_validates_input():
     assert client.post("/api/ask/stream", json={"question": "x"}).status_code == 422
+
+
+def test_test_history_matrix_is_derived_from_attempts():
+    r = client.get("/api/test-history", params={"service_id": "payments-api", "limit": 60})
+    assert r.status_code == 200
+    body = r.json()
+    run_ids = [c["run_id"] for c in body["runs"]]
+    assert "run-pay-main-0233" in run_ids
+    i = run_ids.index("run-pay-main-0233")
+    # The CI summary says PASS, but T-PAY-004's last attempt never reported: the cell must say so (R2).
+    assert body["runs"][i]["summary_status"] == "PASS"
+    assert body["cells"]["T-PAY-004"][i]["state"] == "incomplete"
+    assert body["runs"][i]["verdict"] == "HOLD_MANUAL_REVIEW"
+    states = {c["state"] for row in body["cells"].values() for c in row if c}
+    assert states <= set(body["states"])
+    assert client.get("/api/test-history", params={"service_id": "billing"}).status_code == 404
+    assert client.get("/api/test-history", params={"limit": 500}).status_code == 422

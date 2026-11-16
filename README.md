@@ -113,6 +113,12 @@ python -m app.seed                                      # idempotent; creates ro
 TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 48 passed: adds the DB parity + read-only role tests
 ```
 
+## Shift-left: release check in CI and from your IDE (MCP)
+
+- `GET /api/checks/{run_or_rc}`: the gate verdict as a CI check (`success | neutral | action_required | failure`) with a PR-comment-ready markdown summary. `GET /api/commits/{sha}` attributes each failure on a commit to `likely_this_change`, `known_flaky`, `infrastructure` or `unknown`. `GET /api/triage` is the QE queue with defect type and suggested action.
+- `python services/agent-api/scripts/testops_gate.py --run run-chk-main-0418 --api https://testops.dangtrinh.dev` exits 0 success/neutral, 1 BLOCK, 2 HOLD, 3 error. Example workflow: [`examples/github-actions-release-gate.yml`](examples/github-actions-release-gate.yml).
+- MCP (stdio, read-only, 8 tools + `release_check`): `pip install -e "services/agent-api[mcp]"`, then register `python -m app.mcp_server` with `cwd` `services/agent-api` in Claude Code (`.mcp.json`) or Cursor. Snippet in `app/mcp_server.py`.
+
 ## Environment variables (API)
 
 | Variable | Required | Purpose |

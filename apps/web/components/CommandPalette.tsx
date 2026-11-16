@@ -24,6 +24,10 @@ const PAGES: { href: string; label: string }[] = [
   { href: "/rules", label: "Rules" },
   { href: "/architecture", label: "Architecture" },
   { href: "/pilot", label: "Pilot" },
+  { href: "/dev", label: "Developer workspace" },
+  { href: "/triage", label: "Triage inbox" },
+  { href: "/docs", label: "Docs" },
+  { href: "/changelog", label: "What's new" },
 ];
 
 const TEST_ID = /^T-[A-Z]+-\d+$/i;

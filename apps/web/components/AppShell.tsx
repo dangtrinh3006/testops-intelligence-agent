@@ -25,6 +25,13 @@ const NAV: { group: string; items: NavItem[] }[] = [
     ],
   },
   {
+    group: "Workflows",
+    items: [
+      { href: "/dev", label: "Developer", icon: icon("M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5M9 3l-2 10") },
+      { href: "/triage", label: "Triage inbox", icon: icon("M2.5 9.5h3l1 2h3l1-2h3M2.5 9.5l1.5-6h8l1.5 6v4h-11z") },
+    ],
+  },
+  {
     group: "Quality",
     items: [
       { href: "/flaky", label: "Flaky tests", icon: icon("M2 9.5l3-3 2.5 2.5L11 4l3 3M2 13.5h12") },
@@ -43,6 +50,13 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { href: "/architecture", label: "Architecture", icon: icon("M2.5 3h4v3h-4zM9.5 3h4v3h-4zM6 10h4v3H6zM4.5 6v2h7V6M8 8v2") },
       { href: "/pilot", label: "Pilot plan", icon: icon("M3 13.5V3l4 2 4-2 2 1v9.5l-2-1-4 2-4-2z") },
+    ],
+  },
+  {
+    group: "Help",
+    items: [
+      { href: "/docs", label: "Docs", icon: icon("M3 2.5h7l3 3v8H3zM10 2.5v3h3M5.5 8.5h5M5.5 11h5") },
+      { href: "/changelog", label: "What's new", icon: icon("M8 2v2M8 12v2M2 8h2M12 8h2M4 4l1.5 1.5M10.5 10.5L12 12M4 12l1.5-1.5M10.5 5.5L12 4") },
     ],
   },
 ];

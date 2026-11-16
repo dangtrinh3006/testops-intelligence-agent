@@ -504,3 +504,90 @@ export interface TestHistory {
   cells: Record<string, (HistoryCell | null)[]>;
   states: Record<HistoryState, string>;
 }
+
+// ---------- /api/checks, /api/commits, /api/triage ----------
+export interface Defect {
+  code: TriageCode;
+  label: string;
+}
+
+export type CheckConclusion = "success" | "neutral" | "action_required" | "failure";
+
+export interface CheckFailure {
+  test_id: string;
+  name: string;
+  suite: string;
+  attempt_id: string;
+  state: string;
+  defect: Defect | null;
+  flake_level: string | null;
+  error_class: string | null;
+}
+
+export interface CheckRun {
+  run_id: string;
+  service_id: string;
+  pipeline_id: string;
+  commit: string;
+  branch: string;
+  verdict: Verdict;
+  deciding_rule: string;
+  policy_id: string;
+  rules_version: string;
+  conclusion: CheckConclusion;
+  title: string;
+  summary_markdown: string;
+  counts: { tests: number; failed: number; retried: number; incomplete: number };
+  failures: CheckFailure[];
+}
+
+export interface CommitRow {
+  commit: string;
+  branch: string;
+  service_ids: string[];
+  runs: number;
+  worst_verdict: Verdict;
+  latest_queued_utc: string | null;
+}
+
+export type Attribution = "likely_this_change" | "known_flaky" | "infrastructure" | "unknown";
+
+export interface CommitAssessment {
+  commit: string;
+  branch: string;
+  runs: { run_id: string; service_id: string; pipeline_id: string; verdict: Verdict; queued_utc: string | null }[];
+  assessment: {
+    test_id: string;
+    name: string;
+    run_id: string;
+    state: string;
+    defect: Defect | null;
+    attribution: Attribution;
+    reason: string;
+    evidence: string[];
+  }[];
+  summary: Record<Attribution, number>;
+}
+
+export type SuggestedAction = "fix_product" | "fix_test" | "platform_ticket" | "propose_quarantine" | "investigate";
+
+export interface TriageItem {
+  test_id: string;
+  name: string;
+  service_id: string;
+  suite: string;
+  flake_level: string | null;
+  failures: number;
+  last_failure_utc: string | null;
+  defect: Defect;
+  suggested_action: SuggestedAction;
+  rationale: string;
+  evidence: string[];
+  quarantine: Record<string, unknown> | null;
+}
+
+export interface TriageInbox {
+  lookback_days: number;
+  items: TriageItem[];
+  counts_by_defect: Record<TriageCode, number>;
+}

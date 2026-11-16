@@ -4,6 +4,10 @@ import type {
   DataQualityResponse,
   EvalReport,
   TestHistory,
+  CheckRun,
+  CommitAssessment,
+  CommitRow,
+  TriageInbox,
   FlakyResponse,
   Health,
   Knowledge,
@@ -106,6 +110,10 @@ export const api = {
   dataQuality: (signal?: AbortSignal) => request<DataQualityResponse>("/api/data-quality", { signal }),
   knowledge: (signal?: AbortSignal) => request<Knowledge>("/api/knowledge", { signal }),
   evals: (signal?: AbortSignal) => request<EvalReport>("/api/evals", { signal }),
+  check: (runId: string, signal?: AbortSignal) => request<CheckRun>(`/api/checks/${encodeURIComponent(runId)}`, { signal }),
+  commits: (limit = 20, signal?: AbortSignal) => request<CommitRow[]>(`/api/commits?limit=${limit}`, { signal }),
+  commit: (sha: string, signal?: AbortSignal) => request<CommitAssessment>(`/api/commits/${encodeURIComponent(sha)}`, { signal }),
+  triage: (lookbackDays = 30, signal?: AbortSignal) => request<TriageInbox>(`/api/triage?lookback_days=${lookbackDays}`, { signal }),
   testHistory: (serviceId: string, limit = 40, signal?: AbortSignal) =>
     request<TestHistory>(`/api/test-history?service_id=${encodeURIComponent(serviceId)}&limit=${limit}`, { signal }),
   run: (runId: string, signal?: AbortSignal) =>

@@ -17,11 +17,11 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from .agent import graph as _graph  # noqa: F401 - import LangGraph at cold start, not inside the first request
 from .agent.llm import candidates, model_config
 from .agent.service import PRESETS, ask, ask_stream
-from .domain import history
+from .domain import checks, commits, history, triage
 from .domain.knowledge import knowledge
 from .schemas import AskRequest, AskResponse
 from .store import DATA_DIR, DataUnavailable, dataset
-from .tools import ToolError, run_tool
+from .tools import ToolError, _resolve_run, run_tool
 
 log = logging.getLogger("testops")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -203,6 +203,38 @@ def test_history(service_id: str = "checkout-web", limit: int = Query(40, ge=1, 
     if service_id not in {s["id"] for s in ds.catalog["services"]}:
         raise HTTPException(404, {"error": "not_found", "message": f"Unknown service '{service_id}'."})
     return history.test_history(ds, service_id, limit)
+
+
+@app.get("/api/checks/{run_id}")
+def release_check(run_id: str):
+    """The gate verdict as a CI check run, with a PR-comment-ready markdown summary."""
+    ds, _ = _ds()
+    try:
+        rid = _resolve_run(ds, run_id)
+    except ToolError as e:
+        raise HTTPException(404, {"error": e.code, "message": e.message}) from None
+    return checks.release_check(ds, rid)
+
+
+@app.get("/api/commits")
+def list_commits(limit: int = Query(20, ge=1, le=50)):
+    ds, _ = _ds()
+    return commits.list_commits(ds, limit)
+
+
+@app.get("/api/commits/{sha}")
+def commit_assessment(sha: str):
+    ds, _ = _ds()
+    full = commits.resolve_commit(ds, sha)
+    if full is None:
+        raise HTTPException(404, {"error": "not_found", "message": f"No unique commit for '{sha[:40]}' (need at least {commits.MIN_PREFIX} characters)."})
+    return commits.commit_assessment(ds, full)
+
+
+@app.get("/api/triage")
+def triage_queue(lookback_days: int = Query(30, ge=1, le=30)):
+    ds, _ = _ds()
+    return triage.triage_queue(ds, lookback_days)
 
 
 @app.get("/api/data-quality")

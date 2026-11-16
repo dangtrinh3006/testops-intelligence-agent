@@ -1,0 +1,66 @@
+# EXAMPLE ONLY - not used by this repository's CI.
+# Shows how a product repository would gate a pull request on the TestOps release check:
+# run the tests, ask the TestOps API for the check of the CI run, fail the job on BLOCK or HOLD,
+# and post the markdown summary as a PR comment. The verdict comes from the deterministic policy, not a model.
+#
+# Assumes: the CI run has been ingested into TestOps under an id the job can compute (here TESTOPS_RUN_ID),
+# and TESTOPS_API points at a reachable deployment (a repository variable, not a secret: the API is read-only).
+
+name: release-gate (example)
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write # to post the comment
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the test suite
+        run: echo "your test command here; results are shipped to TestOps by the CI webhook"
+
+  release-gate:
+    needs: tests
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      TESTOPS_API: ${{ vars.TESTOPS_API }}
+      TESTOPS_RUN_ID: run-${{ github.event.pull_request.head.sha }} # how your ingest names runs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: dangtrinh3006/testops-intelligence-agent
+          sparse-checkout: services/agent-api/scripts
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Ask the release gate
+        id: gate
+        run: |
+          set +e
+          python services/agent-api/scripts/testops_gate.py --run "$TESTOPS_RUN_ID" --format markdown > gate.md
+          code=$?
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          cat gate.md >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
+      - name: Comment on the pull request
+        if: steps.gate.outputs.exit != '3'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: fs.readFileSync('gate.md', 'utf8'),
+            });
+
+      - name: Enforce the verdict
+        # 0 success/neutral, 1 BLOCK, 2 HOLD_MANUAL_REVIEW, 3 the gate could not be reached
+        run: exit ${{ steps.gate.outputs.exit }}

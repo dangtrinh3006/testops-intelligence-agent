@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ApiError, api, ASK_TIMEOUT_MS, errorMessage } from "@/lib/api";
 import { useHealth, useOverview } from "@/lib/hooks";
 import type { AskRequest, AskResponse, Mode } from "@/lib/types";
@@ -17,6 +18,8 @@ const PRESET_LABEL: Record<string, string> = {
 
 // Fired by the console hero to run a preset from outside this component.
 export const RUN_PRESET_EVENT = "testops:run-preset";
+// Fills the question box (command palette "Ask the agent"); never submits on its own.
+const PREFILL_EVENT = "testops:prefill-question";
 
 const MODES: { id: Mode; label: string; explain: string }[] = [
   {
@@ -107,9 +110,27 @@ export function Console() {
   const runPresetRef = useRef<(id: string) => void>(() => {});
   useEffect(() => {
     const onRun = (e: Event) => runPresetRef.current(String((e as CustomEvent<string>).detail));
+    const onPrefill = (e: Event) => {
+      setQuestion(String((e as CustomEvent<string>).detail).slice(0, 600));
+      document.getElementById("ask")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
     window.addEventListener(RUN_PRESET_EVENT, onRun);
-    return () => window.removeEventListener(RUN_PRESET_EVENT, onRun);
+    window.addEventListener(PREFILL_EVENT, onPrefill);
+    return () => {
+      window.removeEventListener(RUN_PRESET_EVENT, onRun);
+      window.removeEventListener(PREFILL_EVENT, onPrefill);
+    };
   }, []);
+
+  // `/?ask=<question>` from the command palette: prefill once, then drop the parameter from the URL.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  useEffect(() => {
+    const q = searchParams.get("ask");
+    if (!q) return;
+    window.dispatchEvent(new CustomEvent(PREFILL_EVENT, { detail: q }));
+    router.replace("/#ask", { scroll: false });
+  }, [searchParams, router]);
 
   useEffect(() => {
     if (run.status === "done" || run.status === "error") {

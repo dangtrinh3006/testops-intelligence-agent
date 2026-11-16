@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-api
+  labels: {app.kubernetes.io/name: agent-api, app.kubernetes.io/part-of: testops}
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app.kubernetes.io/name: agent-api}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: agent-api, app.kubernetes.io/part-of: testops}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: api
+          image: ghcr.io/dangtrinh3006/testops-intelligence-agent/agent-api:main
+          ports: [{name: http, containerPort: 8000}]
+          env:
+            - {name: TESTOPS_DATA_SOURCE, value: db}
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+          envFrom:
+            # Created by External Secrets from AWS Secrets Manager (external-secret.example.yaml):
+            # DATABASE_URL_READONLY, LLM_API_KEY, GROQ_API_KEY.
+            - secretRef: {name: agent-api-secrets, optional: true}
+          readinessProbe:
+            httpGet: {path: /api/health, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /api/health, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 250m, memory: 384Mi}
+            limits: {cpu: "1", memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: tmp, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-api
+  labels: {app.kubernetes.io/name: agent-api}
+spec:
+  selector: {app.kubernetes.io/name: agent-api}
+  ports: [{name: http, port: 8000, targetPort: http}]
+---
+# Rate limits are in process memory today: with several replicas they apply per pod until a shared counter replaces them.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: agent-api
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: agent-api}
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}

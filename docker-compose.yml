@@ -1,0 +1,50 @@
+# Local production-like stack: api + web (+ optional Postgres).
+#   docker compose up -d --build api web        -> http://localhost:3000 (fixtures, no database)
+#   docker compose --profile db up -d           -> also starts Postgres; see the api env comments to switch to it
+name: testops
+
+services:
+  api:
+    build: ./services/agent-api
+    image: testops/agent-api:local
+    ports: ["${API_PORT:-8000}:8000"]
+    environment:
+      TESTOPS_DATA_SOURCE: fixtures
+      # Postgres instead of fixtures (start the db profile, then seed once):
+      #   TESTOPS_DATA_SOURCE: db
+      #   DATABASE_URL_READONLY: postgresql://testops_reader:<from your env file>@db:5432/testops
+      #   docker compose run --rm -e DATABASE_URL=postgresql://testops:<password>@db:5432/testops \
+      #     -e READONLY_PASSWORD=<password> api python -m app.seed
+    env_file:
+      # Model keys (LLM_API_KEY, GROQ_API_KEY) live only in this gitignored file; without it the API answers in replay/offline modes.
+      - path: services/agent-api/.env.local
+        required: false
+    restart: unless-stopped
+
+  web:
+    build: ./apps/web
+    image: testops/web:local
+    ports: ["${WEB_PORT:-3000}:3000"]
+    environment:
+      AGENT_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    profiles: ["db"]
+    environment:
+      POSTGRES_DB: testops
+      POSTGRES_USER: testops
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-locally}
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testops -d testops"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:

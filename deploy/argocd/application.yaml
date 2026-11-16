@@ -1,0 +1,21 @@
+# Target (not applied): ArgoCD on EKS watching the prod overlay of this repository.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: testops-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/dangtrinh3006/testops-intelligence-agent.git
+    targetRevision: main
+    path: deploy/k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: testops-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

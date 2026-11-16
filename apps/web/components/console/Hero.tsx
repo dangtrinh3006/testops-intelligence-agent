@@ -112,3 +112,22 @@ function Layers() {
     </div>
   );
 }
+
+/** Overview card: the last recorded agent run, replayed; "Run it live" asks the same question below. */
+export function AgentActivity() {
+  const runC = () => {
+    document.getElementById("ask")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.dispatchEvent(new CustomEvent(RUN_PRESET_EVENT, { detail: "C" }));
+  };
+  return (
+    <section aria-labelledby="activity-title">
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <h2 id="activity-title" className="font-serif text-[1.15rem] tracking-[-0.01em] text-ink">
+          Agent activity
+        </h2>
+        <span className="font-mono text-[11px] text-faint">last recorded run · scenario C</span>
+      </div>
+      <HeroConsole onRunLive={runC} />
+    </section>
+  );
+}

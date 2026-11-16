@@ -1,17 +1,28 @@
+import { Suspense } from "react";
 import { Console } from "@/components/console/Console";
-import { Hero } from "@/components/console/Hero";
+import { AgentActivity } from "@/components/console/Hero";
 import { ReleaseStrip } from "@/components/console/ReleaseStrip";
-import { Eyebrow } from "@/components/ui";
+import { KpiRow, OverviewHeader, RecentRuns } from "@/components/pages/OverviewView";
 
-export default function ConsolePage() {
+export default function OverviewPage() {
   return (
     <>
-      <Hero />
+      <OverviewHeader />
+      <KpiRow />
       <ReleaseStrip />
-      <Eyebrow as="p" className="mb-4">
-        Ask the agent
-      </Eyebrow>
-      <Console />
+      <div className="mb-10 grid gap-4 xl:grid-cols-12">
+        <div className="min-w-0 xl:col-span-7">
+          <RecentRuns />
+        </div>
+        <div className="min-w-0 xl:col-span-5">
+          <AgentActivity />
+        </div>
+      </div>
+      <section id="ask" aria-label="Ask the agent" className="scroll-mt-20">
+        <Suspense fallback={null}>
+          <Console />
+        </Suspense>
+      </section>
     </>
   );
 }

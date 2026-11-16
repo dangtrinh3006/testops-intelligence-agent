@@ -1,0 +1,20 @@
+# Target (not applied): AWS Load Balancer Controller on EKS. Uncomment the annotations for an internet-facing ALB with ACM TLS.
+#   alb.ingress.kubernetes.io/scheme: internet-facing
+#   alb.ingress.kubernetes.io/target-type: ip
+#   alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+#   alb.ingress.kubernetes.io/certificate-arn: <ACM certificate ARN>
+#   alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=120   # SSE answers can take up to 120 s
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: testops
+spec:
+  ingressClassName: alb
+  rules:
+    - host: testops.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: web, port: {number: 3000}}

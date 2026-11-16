@@ -9,7 +9,7 @@ export function ReleaseStrip() {
   const { data, error, loading, reload } = useOverview();
 
   return (
-    <section aria-labelledby="rc-title" className="mb-14">
+    <section aria-labelledby="rc-title" className="mb-8">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
         <Eyebrow>
           <span id="rc-title">Release candidates</span>

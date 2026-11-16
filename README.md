@@ -10,6 +10,7 @@ Built as a proof of concept for a fictional prospect, *Kestrel Commerce*, on **e
 - Prospect brief (one page): [PDF](docs/prospect-brief.pdf) · [Markdown](docs/prospect-brief.md) · print source [`docs/prospect-brief.html`](docs/prospect-brief.html) (rendered with WeasyPrint)
 - Architecture and design decisions: [`docs/technical-deep-dive.md`](docs/technical-deep-dive.md); in the console: [`/architecture`](https://testops.dangtrinh.dev/architecture) (system diagram, data lineage, agent loop, modes, safety, MVP → production)
 - Pilot proposal: [`docs/business-case.md`](docs/business-case.md); in the console: [`/pilot`](https://testops.dangtrinh.dev/pilot) (four-week plan, success criteria, ROI calculator, cost drivers, risks, exit criteria)
+- Containers, CI/CD and GitOps path (Docker images, compose, GHCR + Trivy, kustomize, ArgoCD): [`deploy/README.md`](deploy/README.md)
 
 ## What it answers
 

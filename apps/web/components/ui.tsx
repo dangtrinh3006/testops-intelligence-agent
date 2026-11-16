@@ -94,10 +94,10 @@ export function SectionHeading({
 
 export function PageTitle({ title, children, eyebrow }: { title: ReactNode; children?: ReactNode; eyebrow?: string }) {
   return (
-    <div className="mb-10">
-      {eyebrow && <Eyebrow className="mb-4">{eyebrow}</Eyebrow>}
-      <h1 className="max-w-4xl font-serif text-[34px] leading-[1.1] tracking-[-0.03em] text-ink sm:text-[46px]">{title}</h1>
-      {children && <div className="mt-4 max-w-3xl font-serif text-[18px] leading-relaxed text-muted sm:text-[20px]">{children}</div>}
+    <div className="mb-7 border-b border-line pb-5">
+      {eyebrow && <div className="label-mono mb-2 text-[10.5px] text-accent">{eyebrow}</div>}
+      <h1 className="font-serif text-[28px] leading-tight tracking-[-0.02em] text-ink sm:text-[30px]">{title}</h1>
+      {children && <div className="mt-2 max-w-3xl text-[14px] leading-relaxed text-muted">{children}</div>}
     </div>
   );
 }

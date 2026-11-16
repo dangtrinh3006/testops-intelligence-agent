@@ -61,7 +61,7 @@ flowchart LR
 ```text
 .
 ├── .github/workflows/ci.yml     lint, tests (with Postgres), offline evals, web build
-├── apps/web/                    Next.js 16 console (React 19, TypeScript, Tailwind v4; pages /, /architecture, /pilot, /flaky, /data-quality, /evals, /rules, /triage, /fleet, /audit, /settings)
+├── apps/web/                    Next.js 16 console (React 19, TypeScript, Tailwind v4; pages /, /history, /dev, /triage, /flaky, /data-quality, /evals, /rules, /audit, /fleet, /architecture, /pilot, /settings, /docs, /changelog)
 ├── services/agent-api/
 │   ├── app/
 │   │   ├── etl.py               raw events -> normalised records + data-quality findings

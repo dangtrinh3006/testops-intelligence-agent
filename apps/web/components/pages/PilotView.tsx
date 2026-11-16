@@ -106,7 +106,7 @@ function Criteria() {
         Starting proposals. Each one has a measurement method agreed before shadow mode starts.
       </SectionHeading>
       <Card className="overflow-hidden">
-        <table className="w-full text-[14px]">
+        <table className="w-full text-[14px]" aria-labelledby="crit-title">
           <thead className="hidden border-b border-line bg-sunken/50 sm:table-header-group">
             <tr>
               <th scope="col" className="label-mono px-5 py-3 text-left font-medium text-faint">Criterion</th>
@@ -155,7 +155,7 @@ function NumberInput({
       <label htmlFor={id} className="label-mono block text-[10.5px] text-faint">
         {label}
       </label>
-      <div className="mt-1.5 flex items-center rounded-[3px] border border-line-strong bg-canvas focus-within:border-accent">
+      <div className="mt-1.5 flex items-center rounded-[3px] border border-line-strong bg-canvas focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/40">
         <input
           id={id}
           type="number"
@@ -242,7 +242,7 @@ function Roi() {
               {runs.toLocaleString("en-US")} × {share}% × ({base} − {assisted}) / 60 = {fmtH(hours)} h
             </p>
 
-            <div className="mt-5 overflow-x-auto">
+            <div className="mt-5 overflow-x-auto" role="region" tabIndex={0} aria-label="Sensitivity table, scrollable">
               <table className="w-full min-w-[20rem] text-[13px]">
                 <caption className="label-mono pb-2 text-left text-[10.5px] text-faint">
                   Sensitivity · hours and cost per month

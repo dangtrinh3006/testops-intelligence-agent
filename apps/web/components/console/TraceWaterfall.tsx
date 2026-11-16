@@ -155,7 +155,7 @@ export function TraceWaterfall({ events, res }: { events: StreamEvent[]; res: As
       </div>
       {!timed && <p className="mb-2 font-mono text-[11px] text-accent">recorded order · tool timings only</p>}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="Trace waterfall, scrollable">
         <div className="min-w-[34rem]">
           <div className="grid grid-cols-[minmax(0,15rem)_minmax(0,1fr)] gap-3 border-b border-line pb-1 font-mono text-[10px] text-faint" aria-hidden>
             <span className="uppercase tracking-[0.1em]">Span</span>

@@ -102,10 +102,10 @@ function Steps({ items }: { items: ReactNode[] }) {
   );
 }
 
-function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
+function Table({ head, rows, labelledBy }: { head: string[]; rows: ReactNode[][]; labelledBy: string }) {
   return (
-    <div className="mt-3 overflow-x-auto rounded-[4px] border border-line">
-      <table className="w-full min-w-[520px] text-[13px]">
+    <div className="mt-3 overflow-x-auto rounded-[4px] border border-line" role="region" tabIndex={0} aria-labelledby={labelledBy}>
+      <table className="w-full min-w-[520px] text-[13px]" aria-labelledby={labelledBy}>
         <thead className="label-mono bg-sunken/60 text-left text-[10px] text-faint">
           <tr>
             {head.map((h) => (
@@ -259,7 +259,7 @@ export function DocsView() {
             The release gate (<C>release-policy-v3</C>) evaluates conditions in order; the first match wins. Only the <C>critical</C> suite gates a
             release.
           </P>
-          <Table
+          <Table labelledBy="verdicts"
             head={["Verdict", "When", "Rule"]}
             rows={[
               [<C key="b">BLOCK</C>, "A gating test failed on its final attempt.", "R2"],
@@ -271,7 +271,7 @@ export function DocsView() {
           />
 
           <H3 id="rules">Rules R1–R6</H3>
-          <Table
+          <Table labelledBy="rules"
             head={["Rule", "Title", "Effect"]}
             rows={[
               ["R1", "Infra failures are not test flakiness", "Retry-passes caused by INFRA or EXTERNAL_DEPENDENCY errors do not raise a test's flake level."],
@@ -287,7 +287,7 @@ export function DocsView() {
           </P>
 
           <H3 id="flake-levels">Flake levels</H3>
-          <Table
+          <Table labelledBy="flake-levels"
             head={["Level", "Meaning"]}
             rows={[
               ["proven", "The same commit produced both a final PASS and a final FAIL."],
@@ -300,7 +300,7 @@ export function DocsView() {
           <P>Below five completed runs a level is still shown but flagged as insufficient data. Each flaky test also shows its flip rate.</P>
 
           <H3 id="defect-types">Defect types</H3>
-          <Table
+          <Table labelledBy="defect-types"
             head={["Type", "Meaning", "From categories"]}
             rows={[
               ["PB · Product Bug", "The product behaved wrongly; route to the owning team.", "PRODUCT_ASSERTION"],
@@ -311,7 +311,7 @@ export function DocsView() {
           />
 
           <H3 id="modes">Answer modes</H3>
-          <Table
+          <Table labelledBy="modes"
             head={["Mode", "What answers", "Label"]}
             rows={[
               ["Live", "The model chooses tools and writes the explanation. If it fails, a fallback model, then a second provider, then the offline planner answer.", "Model name; a notice when a fallback answered"],
@@ -337,7 +337,7 @@ export function DocsView() {
 
         <section>
           <H2 id="shortcuts">Keyboard shortcuts</H2>
-          <Table
+          <Table labelledBy="shortcuts"
             head={["Keys", "Action"]}
             rows={[
               [

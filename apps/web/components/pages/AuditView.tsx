@@ -138,8 +138,8 @@ export function AuditView() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-[13px]">
+          <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="Audit entries, scrollable">
+            <table className="w-full min-w-[860px] text-[13px]" aria-labelledby="audit-feed-title">
               <thead className="label-mono border-b border-line bg-sunken/50 text-left text-[10px] text-faint">
                 <tr>
                   <th scope="col" className="px-4 py-2 font-medium sm:px-5">Time (UTC)</th>

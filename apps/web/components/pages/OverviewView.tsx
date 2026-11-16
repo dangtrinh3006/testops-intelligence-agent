@@ -73,8 +73,8 @@ export function RecentRuns() {
         </h2>
         <span className="font-mono text-[11px] text-faint">click a row to inspect</span>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] whitespace-nowrap text-[13px]">
+      <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="Latest run per pipeline, scrollable">
+        <table className="w-full min-w-[720px] whitespace-nowrap text-[13px]" aria-labelledby="runs-title">
           <thead className="label-mono border-b border-line bg-sunken/50 text-left text-[10px] text-faint">
             <tr>
               <th scope="col" className="px-4 py-2 font-medium sm:px-5">Run</th>
@@ -102,7 +102,7 @@ export function RecentRuns() {
                   tabIndex={0}
                   onClick={() => open(r.run_id)}
                   onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), open(r.run_id))}
-                  className="cursor-pointer transition-colors hover:bg-sunken/60 focus-visible:bg-sunken/60 focus-visible:outline-none"
+                  className="cursor-pointer transition-colors hover:bg-sunken/60 focus-visible:bg-sunken/60 focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none"
                   aria-label={`Inspect ${r.run_id}`}
                 >
                   <td className="px-4 py-2.5 sm:px-5">

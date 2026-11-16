@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useHealth } from "@/lib/hooks";
 import { CommandPalette } from "./CommandPalette";
 import { cx } from "./ui";
@@ -71,39 +71,75 @@ function isActive(path: string, href: string) {
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname() ?? "/";
   const [drawer, setDrawer] = useState(false);
+  const menuBtn = useRef<HTMLButtonElement>(null);
+  const aside = useRef<HTMLElement>(null);
+  const restoreFocus = useRef(false);
   const title =
     NAV.flatMap((g) => g.items)
       .filter((i) => isActive(path, i.href))
       .sort((a, b) => b.href.length - a.href.length)[0]?.label ?? "TestOps";
 
+  // Dismissing (Escape, backdrop) returns focus to the menu button; following a link does not.
+  const dismiss = () => {
+    restoreFocus.current = true;
+    setDrawer(false);
+  };
+
   useEffect(() => {
-    if (!drawer) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawer(false);
+    if (!drawer) {
+      // Runs after commit, once the page is no longer inert and the button can take focus.
+      if (restoreFocus.current) menuBtn.current?.focus();
+      restoreFocus.current = false;
+      return;
+    }
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const raf = requestAnimationFrame(() => aside.current?.querySelector<HTMLElement>("a[href], button")?.focus({ preventScroll: true }));
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        restoreFocus.current = true;
+        setDrawer(false);
+      }
+    };
+    // The drawer only exists below lg; close it if the viewport grows past that.
+    const lg = window.matchMedia("(min-width: 1024px)");
+    const onLg = () => lg.matches && setDrawer(false);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    lg.addEventListener("change", onLg);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+      lg.removeEventListener("change", onLg);
+    };
   }, [drawer]);
 
   return (
     <div className="min-h-dvh">
       <div aria-hidden className="fixed inset-x-0 top-0 z-50 h-[2px] bg-accent" />
       <aside
+        ref={aside}
+        id="app-sidebar"
         className={cx(
-          "fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-line bg-[#110d09] pt-[2px] transition-transform lg:translate-x-0",
-          drawer ? "translate-x-0" : "-translate-x-full",
+          "fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-line bg-[#110d09] pt-[2px] transition-[transform,visibility] motion-reduce:transition-none lg:visible lg:translate-x-0",
+          // Hidden (not just off-screen) when closed so its links leave the tab order on mobile.
+          drawer ? "visible translate-x-0" : "invisible -translate-x-full",
         )}
         aria-label="Sidebar"
       >
         <Sidebar path={path} onNavigate={() => setDrawer(false)} />
       </aside>
-      {drawer && <div aria-hidden className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setDrawer(false)} />}
+      {drawer && <div aria-hidden className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={dismiss} />}
 
-      <div className="lg:pl-[248px]">
+      <div className="lg:pl-[248px]" inert={drawer || undefined}>
         <header className="sticky top-0 z-20 border-b border-line bg-canvas pt-[2px]">
           <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
             <button
+              ref={menuBtn}
               type="button"
               className="-ml-1 rounded-[3px] p-1.5 text-muted hover:text-ink lg:hidden"
               aria-label="Open navigation"
+              aria-controls="app-sidebar"
               aria-expanded={drawer}
               onClick={() => setDrawer(true)}
             >

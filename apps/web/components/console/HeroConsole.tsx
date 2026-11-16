@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import { useOverview } from "@/lib/hooks";
+import { useOverview, useReducedMotion } from "@/lib/hooks";
 import { idKind } from "@/lib/ids";
 import type { AskResponse } from "@/lib/types";
 import { EvidenceChip } from "../Evidence";
@@ -57,7 +57,7 @@ export function HeroConsole({ onRunLive }: { onRunLive: () => void }) {
   const [failed, setFailed] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [now, setNow] = useState(0);
-  const [reduced] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+  const reduced = useReducedMotion();
 
   useEffect(() => {
     if (!question) return;
@@ -214,7 +214,7 @@ export function HeroConsole({ onRunLive }: { onRunLive: () => void }) {
       <figcaption className="flex flex-wrap items-center gap-3 border-t border-line px-3 py-2.5 font-mono text-[10.5px] text-faint">
         <span>Recorded live run, re-checked against today&apos;s data · paced for reading</span>
         <span className="ml-auto flex gap-2">
-          <button type="button" onClick={play} disabled={!res} className="uppercase tracking-[0.08em] text-muted hover:text-accent disabled:opacity-50">
+          <button type="button" onClick={play} disabled={!res} aria-label="Replay recorded run" className="uppercase tracking-[0.08em] text-muted hover:text-accent disabled:opacity-50">
             ↻ Replay
           </button>
           <button type="button" onClick={onRunLive} className="uppercase tracking-[0.08em] text-accent hover:text-accent-hover">

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
+import { useReducedMotion } from "@/lib/hooks";
 import { cx, ModeBadge, SectionHeading } from "../ui";
 
 // Interactive walkthrough of one POST /api/ask/stream request. Every stage cites the code that implements it.
@@ -130,18 +131,6 @@ verdict_matches_policy · numbers_grounded`,
 ];
 
 const STEP_MS = 2200;
-
-function subscribeReducedMotion(cb: () => void) {
-  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-}
-const useReducedMotion = () =>
-  useSyncExternalStore(
-    subscribeReducedMotion,
-    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    () => false,
-  );
 
 export function RequestLifecycle() {
   const [active, setActive] = useState(0);

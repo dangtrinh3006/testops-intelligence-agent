@@ -81,7 +81,7 @@ function CommitList({
           onChange={(e) => setQ(e.target.value)}
           placeholder="Filter by sha, branch, service"
           aria-label="Filter commits"
-          className="mt-2 block w-full rounded-[3px] border border-line-strong bg-canvas px-2.5 py-1.5 font-mono text-[12px] text-ink placeholder:text-faint focus:border-accent focus:outline-none"
+          className="mt-2 block w-full rounded-[3px] border border-line-strong bg-canvas px-2.5 py-1.5 font-mono text-[12px] text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40"
         />
       </div>
       {state.loading && (
@@ -107,7 +107,7 @@ function CommitList({
                 onClick={() => onSelect(c.commit)}
                 aria-current={active ? "true" : undefined}
                 className={cx(
-                  "block w-full px-4 py-2.5 text-left transition-colors",
+                  "block w-full px-4 py-2.5 text-left transition-colors focus-visible:outline-offset-[-2px]",
                   active ? "bg-accent/10 shadow-[inset_2px_0_0_var(--accent)]" : "hover:bg-sunken/60",
                 )}
               >
@@ -188,8 +188,8 @@ function CommitDetail({ sha }: { sha: string }) {
         {data.assessment.length === 0 ? (
           <p className="px-5 py-4 text-[13px] text-muted">Every test on this commit reached a passing final attempt. Nothing to attribute.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-[13px]">
+          <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="Failing test attribution, scrollable">
+            <table className="w-full min-w-[760px] text-[13px]" aria-labelledby="assessment-title">
               <thead className="label-mono border-b border-line bg-sunken/50 text-left text-[10px] text-faint">
                 <tr>
                   <th scope="col" className="px-4 py-2 font-medium sm:px-5">Test</th>

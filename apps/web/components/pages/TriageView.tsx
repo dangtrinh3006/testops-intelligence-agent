@@ -234,8 +234,8 @@ function Inbox({ items, counts, lookback }: { items: TriageItem[]; counts: Recor
             {view === "pending" ? "Nothing pending for these filters. Clear a filter or switch to Decided." : "No decisions yet. Accept or override items in Pending."}
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-[13px]">
+          <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="Triage inbox, scrollable">
+            <table className="w-full min-w-[980px] text-[13px]" aria-labelledby="inbox-title">
               <thead className="label-mono border-b border-line bg-sunken/50 text-left text-[10px] text-faint">
                 <tr>
                   <th scope="col" className="px-4 py-2 font-medium sm:px-5">Test</th>
@@ -319,7 +319,7 @@ function Row({
 }) {
   return (
     <>
-      <tr onClick={onSelect} aria-selected={selected} className={cx("transition-colors", selected ? "bg-accent/[0.06] shadow-[inset_2px_0_0_var(--accent)]" : "hover:bg-sunken/50")}>
+      <tr onClick={onSelect} aria-current={selected || undefined} className={cx("transition-colors", selected ? "bg-accent/[0.06] shadow-[inset_2px_0_0_var(--accent)]" : "hover:bg-sunken/50")}>
         <td className="px-4 py-2.5 sm:px-5">
           <EvidenceChip id={item.test_id} />
           <div className="mt-1 max-w-[13rem] truncate text-[11.5px] text-muted" title={item.name}>
@@ -387,7 +387,7 @@ function OverrideRow({ item, onCancel, onSave }: { item: TriageItem; onCancel: (
               autoFocus
               value={next}
               onChange={(e) => setNext(e.target.value as SuggestedAction)}
-              className="rounded-[3px] border border-line-strong bg-canvas px-2 py-1.5 text-[13px] text-ink focus:border-accent focus:outline-none"
+              className="rounded-[3px] border border-line-strong bg-canvas px-2 py-1.5 text-[13px] text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40"
             >
               {options.map((a) => (
                 <option key={a} value={a}>
@@ -403,7 +403,7 @@ function OverrideRow({ item, onCancel, onSave }: { item: TriageItem; onCancel: (
               onChange={(e) => setNote(e.target.value)}
               maxLength={300}
               placeholder="Why the suggestion is wrong"
-              className="block w-full rounded-[3px] border border-line-strong bg-canvas px-2.5 py-1.5 text-[13px] text-ink placeholder:text-faint focus:border-accent focus:outline-none"
+              className="block w-full rounded-[3px] border border-line-strong bg-canvas px-2.5 py-1.5 text-[13px] text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40"
             />
           </label>
           <button type="submit" className={buttonClass("primary", "sm")}>

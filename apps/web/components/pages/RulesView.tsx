@@ -115,8 +115,8 @@ export function RulesView() {
 
       <Card aria-labelledby="tax-title">
         <CardHeader id="tax-title" title="Failure taxonomy" eyebrow="Error class → category → defect type (ReportPortal vocabulary). System issues never count against a test (R1)" />
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="Failure taxonomy, scrollable">
+          <table className="w-full text-sm" aria-labelledby="tax-title">
             <thead className="label-mono border-b border-line bg-sunken/50 text-left text-[10.5px] text-faint">
               <tr>
                 <th scope="col" className="px-4 py-2 font-medium">Category</th>
@@ -154,8 +154,8 @@ export function RulesView() {
       {effort && (
         <Card aria-labelledby="eff-title">
           <CardHeader id="eff-title" title="Effort assumptions" eyebrow="Assumptions, not measurements — a pilot replaces them" />
-          <div className="overflow-x-auto p-4 sm:px-5">
-            <table className="w-full max-w-lg text-sm">
+          <div className="overflow-x-auto p-4 sm:px-5" role="region" tabIndex={0} aria-label="Effort assumptions, scrollable">
+            <table className="w-full max-w-lg text-sm" aria-labelledby="eff-title">
               <thead className="text-left label-mono text-[10.5px] text-faint">
                 <tr>
                   <th scope="col" className="py-1.5 font-medium">Assumption</th>

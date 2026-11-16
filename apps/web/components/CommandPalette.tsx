@@ -204,7 +204,7 @@ export function CommandPalette() {
             aria-label="Command palette"
             className="relative flex max-h-[70vh] w-full max-w-[38rem] flex-col overflow-hidden rounded-[6px] border border-line-strong bg-surface shadow-[0_16px_40px_-16px_rgba(0,0,0,0.8)]"
           >
-            <div className="flex items-center gap-2.5 border-b border-line px-3.5">
+            <div className="flex items-center gap-2.5 border-b border-line px-3.5 focus-within:border-accent/60">
               <SearchIcon />
               <label htmlFor={`${uid}-input`} className="sr-only">
                 Search runs, tests and releases

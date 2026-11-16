@@ -65,8 +65,8 @@ export function FlakyView() {
         <CardHeader id="flaky-title" title={`Tests with retries or failures (${f.tests.length})`} eyebrow={`Scope: ${f.scope.service_id} · as of ${f.scope.as_of}`}>
           Hover or focus a level for its definition.
         </CardHeader>
-        <div className="hidden overflow-x-auto md:block xl:overflow-visible">
-          <table className="w-full text-sm">
+        <div className="hidden overflow-x-auto md:block xl:overflow-visible" role="region" tabIndex={0} aria-label="Flaky tests table, scrollable">
+          <table className="w-full text-sm" aria-labelledby="flaky-title">
             <thead className="label-mono border-b border-line bg-sunken/50 text-left text-[10.5px] text-faint">
               <tr>
                 <th scope="col" className="px-4 py-2.5 font-medium">Test</th>
@@ -273,7 +273,7 @@ function CostModel({ cost }: { cost: FlakyResponse["cost"] }) {
           )}
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="Triage cost scenarios, scrollable">
           <table className="w-full text-sm">
             <caption className="sr-only">Low, base and high cost scenarios; minutes and rates are editable assumptions</caption>
             <thead className="text-left label-mono text-[10.5px] text-faint">
@@ -293,11 +293,11 @@ function CostModel({ cost }: { cost: FlakyResponse["cost"] }) {
                     <th scope="row" className="py-2 pr-2 text-left capitalize text-ink">{b}</th>
                     <td className="px-2 py-2">
                       <label className="sr-only" htmlFor={`${uid}-m-${b}`}>Minutes per investigation, {b}</label>
-                      <input id={`${uid}-m-${b}`} type="number" min={0} max={240} step={1} value={a.minutes[b]} onChange={(e) => set("minutes", b, e.target.value)} className="tabular w-16 rounded-[3px] border border-line-strong bg-canvas px-2 py-1 font-mono text-sm text-ink focus:border-accent focus:outline-none" />
+                      <input id={`${uid}-m-${b}`} type="number" min={0} max={240} step={1} value={a.minutes[b]} onChange={(e) => set("minutes", b, e.target.value)} className="tabular w-16 rounded-[3px] border border-line-strong bg-canvas px-2 py-1 font-mono text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40" />
                     </td>
                     <td className="px-2 py-2">
                       <label className="sr-only" htmlFor={`${uid}-r-${b}`}>USD per hour, {b}</label>
-                      <input id={`${uid}-r-${b}`} type="number" min={0} max={500} step={5} value={a.rate[b]} onChange={(e) => set("rate", b, e.target.value)} className="tabular w-16 rounded-[3px] border border-line-strong bg-canvas px-2 py-1 font-mono text-sm text-ink focus:border-accent focus:outline-none" />
+                      <input id={`${uid}-r-${b}`} type="number" min={0} max={500} step={5} value={a.rate[b]} onChange={(e) => set("rate", b, e.target.value)} className="tabular w-16 rounded-[3px] border border-line-strong bg-canvas px-2 py-1 font-mono text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40" />
                     </td>
                     <td className="tabular px-2 py-2 text-right">{roundHalfEven(hours, 1).toFixed(1)}</td>
                     <td className="tabular py-2 pl-2 text-right">${roundHalfEven(hours * a.rate[b]).toLocaleString("en-US")}</td>

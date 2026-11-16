@@ -107,7 +107,7 @@ function Matrix({ h }: { h: TestHistory }) {
           <Legend states={h.states} />
         </div>
 
-        <div className="overflow-x-auto" onMouseLeave={() => setHover(null)}>
+        <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="Test by run matrix, scrollable" onMouseLeave={() => setHover(null)}>
           <table className="w-full border-separate border-spacing-0 text-left" aria-label={`Test outcomes for ${h.service_id}, one column per run`}>
             <thead>
               <tr>
@@ -175,7 +175,7 @@ function Matrix({ h }: { h: TestHistory }) {
                             )}
                           />
                         ) : (
-                          <span aria-label="not run" className="block h-[16px] w-full min-w-[12px] rounded-[2px] bg-sunken" />
+                          <span role="img" aria-label="not run" className="block h-[16px] w-full min-w-[12px] rounded-[2px] bg-sunken" />
                         )}
                       </td>
                     );

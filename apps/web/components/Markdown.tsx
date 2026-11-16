@@ -12,7 +12,7 @@ const components: Components = {
   strong: ({ children }) => <strong>{linkify(children)}</strong>,
   em: ({ children }) => <em>{linkify(children)}</em>,
   td: ({ children }) => <td>{linkify(children)}</td>,
-  th: ({ children }) => <th>{linkify(children)}</th>,
+  th: ({ children }) => <th scope="col">{linkify(children)}</th>,
   h1: ({ children }) => <h3>{linkify(children)}</h3>,
   h2: ({ children }) => <h3>{linkify(children)}</h3>,
   h3: ({ children }) => <h4>{linkify(children)}</h4>,

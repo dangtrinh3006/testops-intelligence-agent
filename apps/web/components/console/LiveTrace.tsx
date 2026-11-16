@@ -114,7 +114,7 @@ export function LiveTrace({ events, running, startedAt, res }: { events: StreamE
                 type="button"
                 aria-pressed={view === v}
                 onClick={() => setView(v)}
-                className={`px-2 py-0.5 text-[11px] transition-colors ${view === v ? "bg-accent/15 text-accent" : "text-muted hover:text-ink"}`}
+                className={`px-2 py-0.5 text-[11px] transition-colors focus-visible:outline-offset-[-2px] ${view === v ? "bg-accent/15 text-accent" : "text-muted hover:text-ink"}`}
               >
                 {v === "log" ? "Log" : "Waterfall"}
               </button>
@@ -122,6 +122,10 @@ export function LiveTrace({ events, running, startedAt, res }: { events: StreamE
           </span>
         )}
       </div>
+      {/* Announce node transitions only; the log itself is not live so each event is not read out. */}
+      <p className="sr-only" role="status">
+        {active ? `Stage: ${NODES.find((n) => n.key === active)?.label}` : ""}
+      </p>
       <ol className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4" aria-label="Graph nodes">
         {NODES.map((n, i) => {
           const isActive = active === n.key;
@@ -141,7 +145,7 @@ export function LiveTrace({ events, running, startedAt, res }: { events: StreamE
       {showWaterfall && res ? (
         <TraceWaterfall events={events} res={res} />
       ) : (
-      <ol className="max-h-72 overflow-y-auto px-4 py-3 font-mono text-[12px] leading-relaxed" aria-live="polite">
+      <ol className="max-h-72 overflow-y-auto px-4 py-3 font-mono text-[12px] leading-relaxed" aria-label="Run log" tabIndex={0}>
         {visible.length === 0 && <li className="text-faint">Waiting for the first node update…</li>}
         {visible.map((e, i) => {
           const l = line(e);

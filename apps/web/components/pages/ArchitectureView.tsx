@@ -443,7 +443,7 @@ function MvpToProduction() {
         What runs today, and what a production design would add. The right column is a plan, not a feature list.
       </SectionHeading>
       <Card className="overflow-hidden">
-        <table className="hidden w-full text-[14px] md:table">
+        <table className="hidden w-full text-[14px] md:table" aria-labelledby="mvp-title">
           <thead className="border-b border-line bg-sunken/50">
             <tr>
               <th scope="col" className="label-mono w-40 px-5 py-3 text-left font-medium text-faint">

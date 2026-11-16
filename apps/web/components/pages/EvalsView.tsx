@@ -54,18 +54,20 @@ function EmptyState() {
           <p className="mt-3 max-w-2xl text-sm text-ink">The API has no eval report. Results appear here once the harness has run. This is what it checks:</p>
         </div>
       </Card>
-      <HarnessGrid />
+      <HarnessGrid level={2} />
     </div>
   );
 }
 
-function HarnessGrid() {
+// Level follows context: directly under the page h1 when empty, under suite h2s otherwise.
+function HarnessGrid({ level = 3 }: { level?: 2 | 3 }) {
+  const H = level === 2 ? "h2" : "h3";
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {HARNESS.map((h) => (
         <Card key={h.title} as="article">
           <div className="p-4">
-            <h3 className="font-serif text-[18px] leading-snug text-ink">{h.title}</h3>
+            <H className="font-serif text-[18px] leading-snug text-ink">{h.title}</H>
             <p className="mt-1 text-sm text-muted">{h.body}</p>
           </div>
         </Card>

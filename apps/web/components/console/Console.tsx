@@ -302,7 +302,6 @@ export function Console() {
           {run.status === "loading" && "Asking the agent…"}
           {run.status === "done" &&
             `Answer ready${run.res.gate ? `. Verdict ${run.res.gate.verdict}, rule ${run.res.gate.deciding_rule}` : ""}. Validation ${run.res.validation.passed ? "passed" : "failed"}.`}
-          {run.status === "error" && `Request failed: ${errorMessage(run.error)}`}
         </div>
         {run.status !== "idle" && (
           <div className="mb-4">

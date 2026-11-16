@@ -43,6 +43,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { href: "/evals", label: "Agent evals", icon: icon("M3 8.5l3 3 7-7M2.5 13.5h11") },
       { href: "/rules", label: "Rules & policy", icon: icon("M4 2.5h8v11H4zM6 5.5h4M6 8h4M6 10.5h2.5") },
+      { href: "/audit", label: "Audit log", icon: icon("M4 2.5h8v11H4zM6 5.5h4M6 8h4M6 10.5h4M2.5 4v9") },
     ],
   },
   {
@@ -51,6 +52,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { href: "/fleet", label: "Agent fleet", icon: icon("M3 4.5h10v3H3zM3 9.5h10v3H3zM5 6h.01M5 11h.01M8 2v2.5M8 7.5v2") },
       { href: "/architecture", label: "Architecture", icon: icon("M2.5 3h4v3h-4zM9.5 3h4v3h-4zM6 10h4v3H6zM4.5 6v2h7V6M8 8v2") },
       { href: "/pilot", label: "Pilot plan", icon: icon("M3 13.5V3l4 2 4-2 2 1v9.5l-2-1-4 2-4-2z") },
+      { href: "/settings", label: "Settings", icon: icon("M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4") },
     ],
   },
   {

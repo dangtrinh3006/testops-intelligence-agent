@@ -23,6 +23,18 @@ export const CHANGELOG: Release[] = [
     items: [
       {
         tag: "New",
+        title: "Audit log",
+        body: "One feed for every agent answer (mode, model, verdict, validation, latency), every accept or override in the triage inbox, and every fleet control-plane action. In memory for the sandbox; resets when the API restarts.",
+        href: "/audit",
+      },
+      {
+        tag: "New",
+        title: "Settings & integrations",
+        body: "What the deployment is running, read at runtime: model fallback chain, data source, rules version, and the honest status of each integration. Write-back to ReportPortal, Jira, Slack and GitHub Checks is not connected; the agent stays read-only.",
+        href: "/settings",
+      },
+      {
+        tag: "New",
         title: "Agent fleet & connectors",
         body: "Control plane for QE connectors in customer networks: enrolment, heartbeat status, version drift, pulled policy, per-connector and workspace kill switches, and an audit log. Sandbox connectors are simulated.",
         href: "/fleet",

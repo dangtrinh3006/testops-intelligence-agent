@@ -39,10 +39,10 @@ def test_read_only_surface():
     paths = {r.path: getattr(r, "methods", set()) for r in app.routes}
     writes = [p for p, m in paths.items() if m and m & {"PUT", "PATCH", "DELETE"}]
     posts = [p for p, m in paths.items() if m and "POST" in m]
-    # The only POSTs outside /api/ask are the sandbox fleet control plane (in memory, never the dataset).
+    # The only POSTs outside /api/ask are the sandbox fleet control plane and the audit log (in memory, never the dataset).
     fleet_posts = ["/api/fleet/enrol", "/api/fleet/workspace/kill-switch", "/api/fleet/{connector_id}/heartbeat",
                    "/api/fleet/{connector_id}/pause", "/api/fleet/{connector_id}/resume", "/api/ingest/events"]
-    assert writes == [] and sorted(posts) == sorted(["/api/ask", "/api/ask/stream", *fleet_posts])
+    assert writes == [] and sorted(posts) == sorted(["/api/ask", "/api/ask/stream", "/api/audit/triage-decisions", *fleet_posts])
 
 
 def test_raw_event_and_pipeline_ids_resolve():

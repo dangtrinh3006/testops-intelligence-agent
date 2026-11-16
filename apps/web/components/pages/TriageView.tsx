@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { api, errorMessage } from "@/lib/api";
 import type { SuggestedAction, TriageCode, TriageItem } from "@/lib/types";
@@ -8,9 +9,11 @@ import { TriagePill } from "../Attempts";
 import { EvidenceChip } from "../Evidence";
 import { buttonClass, Card, cx, ErrorBlock, LoadingBlock } from "../ui";
 
-// Triage inbox for QE. Decisions are a local draft (localStorage); nothing is written to CI or the dataset.
+// Triage inbox for QE. Decisions are a local draft (localStorage) and are also sent, fire-and-forget, to the
+// audit log; nothing is written to CI or the dataset.
 
 const DECISIONS_STORE = "testops.triage.decisions.v1";
+const AUDIT_NOTE_CHARS = 200;
 const CHANGE_EVENT = "testops:triage-decisions";
 
 const ACTIONS: Record<SuggestedAction, string> = {
@@ -25,6 +28,28 @@ const DEFECT_LABEL: Record<TriageCode, string> = { PB: "Product Bug", AB: "Autom
 
 type Decision = { status: "accepted" | "overridden"; action: SuggestedAction; note?: string; decided_at: string };
 type Decisions = Record<string, Decision>;
+type AuditHint = "recorded" | "unavailable" | null;
+
+// Latest attempt for the item (evidence is in run order); lets the audit entry point at a concrete record.
+const latestAttempt = (item: TriageItem) => [...item.evidence].reverse().find((id) => id.startsWith("att-")) ?? null;
+
+function sendToAudit(item: TriageItem, d: Decision, onResult: (h: AuditHint) => void) {
+  api
+    .recordTriageDecisions([
+      {
+        test_id: item.test_id,
+        attempt_id: latestAttempt(item),
+        suggested_action: item.suggested_action,
+        chosen_action: d.action,
+        status: d.status,
+        note: d.note ? d.note.slice(0, AUDIT_NOTE_CHARS) : null,
+      },
+    ])
+    .then(
+      () => onResult("recorded"),
+      () => onResult("unavailable"),
+    );
+}
 
 // --- tiny external store over localStorage, so server and client render the same first frame ---
 function readRaw(): string {
@@ -76,6 +101,7 @@ function Inbox({ items, counts, lookback }: { items: TriageItem[]; counts: Recor
   const [view, setView] = useState<"pending" | "decided">("pending");
   const [cursor, setCursor] = useState(0);
   const [overriding, setOverriding] = useState<string | null>(null);
+  const [auditHint, setAuditHint] = useState<AuditHint>(null);
 
   const rows = useMemo(
     () =>
@@ -90,14 +116,16 @@ function Inbox({ items, counts, lookback }: { items: TriageItem[]; counts: Recor
   const selected = Math.min(cursor, Math.max(rows.length - 1, 0));
   const decidedCount = items.filter((i) => decisions[i.test_id]).length;
 
-  const accept = (item: TriageItem) =>
-    writeDecisions({ ...decisions, [item.test_id]: { status: "accepted", action: item.suggested_action, decided_at: new Date().toISOString() } });
+  const accept = (item: TriageItem) => {
+    const d: Decision = { status: "accepted", action: item.suggested_action, decided_at: new Date().toISOString() };
+    writeDecisions({ ...decisions, [item.test_id]: d });
+    sendToAudit(item, d, setAuditHint);
+  };
   const override = (item: TriageItem, next: SuggestedAction, note: string) => {
-    writeDecisions({
-      ...decisions,
-      [item.test_id]: { status: "overridden", action: next, note: note.trim() || undefined, decided_at: new Date().toISOString() },
-    });
+    const d: Decision = { status: "overridden", action: next, note: note.trim() || undefined, decided_at: new Date().toISOString() };
+    writeDecisions({ ...decisions, [item.test_id]: d });
     setOverriding(null);
+    sendToAudit(item, d, setAuditHint);
   };
   const undo = (item: TriageItem) => {
     const next = { ...decisions };
@@ -142,7 +170,8 @@ function Inbox({ items, counts, lookback }: { items: TriageItem[]; counts: Recor
   return (
     <div className="space-y-4">
       <p className="rounded-[4px] border border-accent/40 bg-accent/[0.06] px-4 py-2.5 text-[13px] text-ink">
-        Decisions stay in your browser. The agent never writes to CI; R4 quarantine is a human decision.
+        Decisions stay in your browser and are copied to the <Link href="/audit" className="text-accent underline-offset-2 hover:underline">audit log</Link>.
+        The agent never writes to CI; R4 quarantine is a human decision.
       </p>
 
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by defect type">
@@ -190,6 +219,11 @@ function Inbox({ items, counts, lookback }: { items: TriageItem[]; counts: Recor
             ))}
           </div>
           <span className="hidden font-mono text-[10.5px] text-faint md:inline">j/k move · a accept · o override</span>
+          {auditHint && (
+            <span role="status" className={cx("font-mono text-[10.5px]", auditHint === "recorded" ? "text-ship" : "text-faint")}>
+              {auditHint === "recorded" ? "recorded in audit log" : "audit unavailable · saved locally"}
+            </span>
+          )}
           <button type="button" onClick={exportJson} disabled={decidedCount === 0} className={cx(buttonClass("secondary", "sm"), "ml-auto")}>
             Export decisions (JSON)
           </button>

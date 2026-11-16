@@ -61,11 +61,11 @@ flowchart LR
 ```text
 .
 ├── .github/workflows/ci.yml     lint, tests (with Postgres), offline evals, web build
-├── apps/web/                    Next.js 16 console (React 19, TypeScript, Tailwind v4; pages /, /architecture, /pilot, /flaky, /data-quality, /evals, /rules)
+├── apps/web/                    Next.js 16 console (React 19, TypeScript, Tailwind v4; pages /, /architecture, /pilot, /flaky, /data-quality, /evals, /rules, /triage, /fleet, /audit, /settings)
 ├── services/agent-api/
 │   ├── app/
 │   │   ├── etl.py               raw events -> normalised records + data-quality findings
-│   │   ├── domain/              gate.py, flaky.py, cost.py, evidence.py, knowledge.py, fleet.py (connector control plane)
+│   │   ├── domain/              gate.py, flaky.py, cost.py, evidence.py, knowledge.py, fleet.py (connector control plane), audit.py, integrations.py
 │   │   ├── tools.py             8 bounded read-only tools (the agent's only data access)
 │   │   ├── agent/               graph.py (LangGraph), client.py, validator.py, service.py
 │   │   ├── evals.py             agent eval harness (golden / adversarial / robustness)
@@ -89,7 +89,7 @@ git clone https://github.com/dangtrinh3006/testops-intelligence-agent.git
 cd testops-intelligence-agent/services/agent-api
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt pytest uvicorn
-python -m pytest -q                                     # 80 passed, 2 skipped (DB tests need TEST_DATABASE_URL)
+python -m pytest -q                                     # 92 passed, 2 skipped (DB tests need TEST_DATABASE_URL)
 python -m uvicorn app.main:app --port 8000              # fixtures + offline mode, no keys needed
 ```
 
@@ -110,7 +110,7 @@ Postgres (optional, same results as fixtures):
 docker run -d --name testops-pg -e POSTGRES_PASSWORD=localdev -p 5440:5432 postgres:17-alpine
 export DATABASE_URL=postgresql://postgres:localdev@localhost:5440/postgres READONLY_PASSWORD=local-reader
 python -m app.seed                                      # idempotent; creates role testops_reader (SELECT only)
-TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 82 passed: adds the DB parity + read-only role tests
+TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 94 passed: adds the DB parity + read-only role tests
 ```
 
 ## Shift-left: release check in CI and from your IDE (MCP)
@@ -130,6 +130,20 @@ TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 82 passed: adds the DB
 - CLI (standard library only): `python services/agent-api/scripts/testops_connector.py enrol --api http://localhost:8000 --code enroll-demo-not-secret --name acme-ci-1 --adapter junit-xml`, then `push --junit services/agent-api/tests/fixtures/junit-sample.xml --run-id run-1 --service checkout-web` (add `--dry-run` to print events only) and `run --interval 30`. The credential is saved to `~/.testops-connector.json` with mode 0600. HTTPS is required except for localhost; 429/5xx are retried with backoff; 423 stops the push (exit 4).
 - `enroll-demo-not-secret` is the public sandbox enrolment code; any other code returns `403`.
 - Sandbox limits: the four Kestrel connectors are simulated (their heartbeat age is fixed). State lives in process memory: it resets on a restart or a serverless cold start, and separate serverless instances do not share it, so on the hosted demo a connector enrolled on one instance can get `401` on another. Ingested events are counted and the last 50 kept in memory; they never enter the release dataset.
+
+## Audit log
+
+`/audit` is one feed, newest first, of agent answers, human triage decisions and fleet control-plane actions.
+
+- `agent.answer` is recorded by the API after every `/api/ask` and `/api/ask/stream` answer, in every mode: request id, question (first 200 characters, emails redacted), mode, model, gate verdict, validation result with failed check names, revisions, tool call count, latency and any fallback notice. The agent has no tool that writes here; a recording failure is logged and never fails the answer.
+- `human.triage_decision`: accepting or overriding an item in `/triage` keeps the local draft in the browser and also posts it, fire-and-forget, to `POST /api/audit/triage-decisions` (≤ 100 per batch, unknown fields rejected, `accepted` must keep the suggested action, notes ≤ 200 characters with emails redacted, actor `reviewer (sandbox)`). Undo is local only and is not audited.
+- `control_plane` entries are read from the fleet's own audit at query time, not copied.
+- `GET /api/audit?kind=agent.answer|human.triage_decision|control_plane&limit=` (limit ≤ 200).
+- Sandbox limit: a process-local ring buffer of 500 entries per instance. It resets on a restart or cold start, and serverless instances do not share it. A production install writes to an append-only store.
+
+## Settings & integrations
+
+`/settings` and `GET /api/integrations` report what the running API actually has, from runtime state only: the ordered model chain (configured booleans, fallback order, offline planner always last), data source and counts, rules version, and each integration's status. Statuses are `connected`, `available` (a script or API exists in this deployment), `example`, `documented` (exists in the repository but not in this bundle, e.g. scripts on Vercel), `not_connected` and `planned`. ReportPortal, Jira, Slack and GitHub Checks write-back are `not_connected`: they are planned and the agent is read-only. The response contains names, booleans and counts, never credential values or endpoint URLs; nothing on the page is editable.
 
 ## Environment variables (API)
 
@@ -158,7 +172,7 @@ Web: `AGENT_API_URL` (read at runtime by the route handler `apps/web/app/api/[..
 | Web | `cd apps/web && npm run typecheck && npm run lint && npm run build` |
 | Deployed smoke test | `python scripts/smoke.py https://testops.dangtrinh.dev` (add `--live` for one live answer) |
 
-CI: `.github/workflows/ci.yml` runs on every push to `main` and on pull requests: ruff, pytest with a Postgres service (all 82 tests, including DB parity), the offline eval report; web typecheck, lint and build.
+CI: `.github/workflows/ci.yml` runs on every push to `main` and on pull requests: ruff, pytest with a Postgres service (all 94 tests, including DB parity), the offline eval report; web typecheck, lint and build.
 
 Agent evals: 10 cases (golden, adversarial, robustness). History in `services/agent-api/data/evals/HISTORY.md`: live run 1 scored 7/10 (2 validator false positives, 1 real prompt gap), run 2 10/10 after fixes (median 14.0 s). After the red-team review tightened the validator, three single runs scored 8/10, 9/10 and 8/10 with different cases failing: agent nondeterminism. The harness now takes `--repeat N` and classifies each case stable, flaky or failing, the same way the product classifies tests. The 3× stability run (`data/evals/latest.json`, `gemini-3.5-flash-lite`): 7/10 cases passed every run (pass^3 = 0.7, the τ-bench reliability metric), 26/30 runs passed (pass@1 0.867), 7 stable, 3 flaky, 0 failing, median 13.7 s; the policy verdict was correct in all 30 runs.
 

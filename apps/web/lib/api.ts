@@ -1,6 +1,10 @@
 import type {
   AskRequest,
   AskResponse,
+  AuditFeed,
+  AuditKind,
+  Integrations,
+  TriageDecisionInput,
   DataQualityResponse,
   EvalReport,
   TestHistory,
@@ -134,6 +138,15 @@ export const api = {
       body: JSON.stringify({ enabled }),
       headers: { "content-type": "application/json" },
     }),
+  audit: (kind: AuditKind | null, limit = 200, signal?: AbortSignal) =>
+    request<AuditFeed>(`/api/audit?limit=${limit}${kind ? `&kind=${encodeURIComponent(kind)}` : ""}`, { signal }),
+  recordTriageDecisions: (decisions: TriageDecisionInput[]) =>
+    request<{ recorded: number; ids: string[] }>("/api/audit/triage-decisions", {
+      method: "POST",
+      body: JSON.stringify({ decisions }),
+      headers: { "content-type": "application/json" },
+    }),
+  integrations: (signal?: AbortSignal) => request<Integrations>("/api/integrations", { signal }),
   ask: (req: AskRequest, signal?: AbortSignal) =>
     request<AskResponse>("/api/ask", {
       method: "POST",

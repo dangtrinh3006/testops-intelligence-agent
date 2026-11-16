@@ -1,6 +1,7 @@
 """FastAPI app. Read-only by design: there is no endpoint that mutates CI, releases or the dataset.
 
-The only writes are the sandbox fleet control plane (/api/fleet/*, /api/ingest/events), held in process memory.
+The only writes are the sandbox fleet control plane (/api/fleet/*, /api/ingest/events) and the audit log
+(/api/audit/triage-decisions), both held in process memory.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from .agent import graph as _graph  # noqa: F401 - import LangGraph at cold start, not inside the first request
 from .agent.llm import candidates, model_config
 from .agent.service import PRESETS, ask, ask_stream
-from .domain import checks, commits, fleet, history, triage
+from .domain import audit, checks, commits, fleet, history, integrations, triage
 from .domain.knowledge import knowledge
 from .schemas import AskRequest, AskResponse
 from .store import DATA_DIR, DataUnavailable, dataset
@@ -69,6 +70,14 @@ async def request_context(request: Request, call_next):
     log.info(json.dumps({"request_id": rid, "method": request.method, "path": request.url.path, "status": response.status_code,
                          "ms": int((time.perf_counter() - t0) * 1000)}))
     return response
+
+
+def _record_answer(data: dict | AskResponse) -> None:
+    # Auditing must never slow or break an answer: failures are logged, not raised.
+    try:
+        audit.log().record_answer(data if isinstance(data, dict) else data.model_dump())
+    except Exception as e:  # noqa: BLE001
+        log.warning(json.dumps({"event": "audit_record_failed", "error": type(e).__name__}))
 
 
 def _ds():
@@ -156,6 +165,7 @@ def ask_stream_endpoint(body: AskRequest, request: Request):
                 log.info(json.dumps({"request_id": data["request_id"], "event": "ask_stream", "mode": data["mode"], "model": data["model"],
                                      "tools": [t["tool"] for t in data["tool_trace"]], "validation": data["validation"]["passed"],
                                      "latency_ms": data["latency_ms"]}))
+                _record_answer(data)
             yield f"event: {ev}\ndata: {json.dumps(data, default=str)}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream",
@@ -170,6 +180,7 @@ def ask_endpoint(body: AskRequest, request: Request):
     log.info(json.dumps({"request_id": resp.request_id, "event": "ask", "mode": resp.mode, "model": resp.model,
                          "tools": [t.tool for t in resp.tool_trace], "verdict": resp.gate.verdict if resp.gate else None,
                          "validation": resp.validation.passed, "latency_ms": resp.latency_ms}))
+    _record_answer(resp)
     return resp
 
 
@@ -264,6 +275,26 @@ def evals():
         raise HTTPException(404, {"error": "not_found", "message": "No eval report yet. Run python -m app.evals."})
     primary = out.get("live") or out["offline"]
     return {**primary, "reports": out}
+
+
+@app.get("/api/integrations")
+def integrations_status():
+    """Settings & integrations from runtime state only: names, booleans and counts, never credentials."""
+    return integrations.integrations()
+
+
+# --- Audit log (sandbox, in memory per instance). Agent answers are recorded by the API, never by an agent tool. ---
+
+@app.get("/api/audit")
+def audit_feed(kind: audit.Kind | None = None, limit: int = Query(50, ge=1, le=audit.MAX_LIMIT)):
+    return audit.log().feed(kind, limit)
+
+
+@app.post("/api/audit/triage-decisions")
+def audit_triage_decisions(body: audit.TriageDecisionBatch):
+    """Human accept/override decisions from the triage inbox. Records only; nothing is written to CI or the dataset."""
+    rows = audit.log().record_decisions(body)
+    return {"recorded": len(rows), "ids": [r["id"] for r in rows]}
 
 
 @app.get("/api/tools")

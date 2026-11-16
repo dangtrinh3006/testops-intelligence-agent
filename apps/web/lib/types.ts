@@ -643,3 +643,104 @@ export interface FleetSnapshot {
   recent_events: number;
   audit: AuditEntry[];
 }
+
+// ---------- /api/audit ----------
+export type AuditKind = "agent.answer" | "human.triage_decision" | "control_plane";
+
+export interface AgentAnswerDetail {
+  request_id: string;
+  question: string;
+  mode: Mode;
+  model: string | null;
+  verdicts: { run_id: string; verdict: Verdict; rule: string | null }[];
+  validation_passed: boolean;
+  failed_checks: string[];
+  revisions: number;
+  tool_calls: number;
+  latency_ms: number;
+  notice: string | null;
+}
+
+export interface TriageDecisionDetail {
+  test_id: string;
+  attempt_id: string | null;
+  suggested_action: SuggestedAction;
+  chosen_action: SuggestedAction;
+  status: "accepted" | "overridden";
+  note: string | null;
+}
+
+export interface ControlPlaneDetail {
+  action: string;
+  target: string;
+  note: string;
+}
+
+interface AuditBase<K extends AuditKind, D> {
+  id: string;
+  ts: string;
+  kind: K;
+  actor: string;
+  summary: string;
+  detail: D;
+}
+
+export type AuditRecord =
+  | AuditBase<"agent.answer", AgentAnswerDetail>
+  | AuditBase<"human.triage_decision", TriageDecisionDetail>
+  | AuditBase<"control_plane", ControlPlaneDetail>;
+
+export interface AuditFeed {
+  entries: AuditRecord[];
+  counts: Record<AuditKind, number>;
+  total: number;
+  capacity: number;
+  storage: "in_memory";
+  as_of_utc: string;
+}
+
+export interface TriageDecisionInput {
+  test_id: string;
+  attempt_id?: string | null;
+  suggested_action: SuggestedAction;
+  chosen_action: SuggestedAction;
+  status: "accepted" | "overridden";
+  note?: string | null;
+}
+
+// ---------- /api/integrations ----------
+export type IntegrationStatus = "connected" | "available" | "example" | "documented" | "not_connected" | "planned";
+
+export interface ModelChainEntry {
+  position: number;
+  model: string;
+  provider: string;
+  configured: boolean;
+  role: "primary" | "fallback" | "last resort";
+}
+
+export interface Integration {
+  id: string;
+  name: string;
+  category: string;
+  status: IntegrationStatus;
+  detail: string;
+  href?: string;
+}
+
+export interface Integrations {
+  workspace: { name: string; sandbox: boolean; region: string | null };
+  models: {
+    configured: boolean;
+    chain: ModelChainEntry[];
+    providers: { provider: string; configured: boolean }[];
+    primary_override: boolean;
+    configurable_here: boolean;
+  };
+  data_source:
+    | { status: "ok"; source: string; raw_events: number; runs: number; attempts: number; tests: number; read_only: boolean }
+    | { status: "unavailable"; source: null };
+  rules: { version: string };
+  integrations: Integration[];
+  governance: { agent_read_only: boolean; kill_switch: boolean; audit_entries: number; audit_storage: string };
+}

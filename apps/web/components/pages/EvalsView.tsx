@@ -65,7 +65,7 @@ function HarnessGrid() {
       {HARNESS.map((h) => (
         <Card key={h.title} as="article">
           <div className="p-4">
-            <h3 className="text-sm font-semibold text-ink">{h.title}</h3>
+            <h3 className="font-serif text-[18px] leading-snug text-ink">{h.title}</h3>
             <p className="mt-1 text-sm text-muted">{h.body}</p>
           </div>
         </Card>
@@ -84,7 +84,7 @@ function Reports({ report }: { report: EvalReport }) {
   return (
     <div className="space-y-6">
       {entries.length > 1 && (
-        <div role="tablist" aria-label="Eval runs" className="inline-flex flex-wrap gap-1 rounded-lg border border-line bg-surface p-1">
+        <div role="tablist" aria-label="Eval runs" className="inline-flex flex-wrap gap-1 rounded-[4px] border border-line bg-surface p-1">
           {entries.map(([key, r]) => {
             const c = countCases(r);
             const selected = key === active;
@@ -96,9 +96,12 @@ function Reports({ report }: { report: EvalReport }) {
                 aria-selected={selected}
                 aria-controls="eval-panel"
                 onClick={() => setActive(key)}
-                className={cx("rounded-md px-3 py-1.5 text-sm transition", selected ? "bg-ink text-canvas" : "text-muted hover:bg-sunken hover:text-ink")}
+                className={cx(
+                  "rounded-[3px] border px-3 py-1.5 font-mono text-[11.5px] uppercase tracking-[0.08em] transition-colors",
+                  selected ? "border-accent/60 bg-accent/10 text-accent" : "border-transparent text-muted hover:bg-sunken hover:text-ink",
+                )}
               >
-                {REPORT_LABEL[key] ?? key} <span className="tabular font-mono text-xs opacity-80">{c.passed}/{c.total}</span>
+                {REPORT_LABEL[key] ?? key} <span className="tabular font-mono text-xs opacity-80">{r.summary?.flaky != null ? `${r.summary.stable ?? c.passed} stable · ${r.summary.flaky} flaky · ${r.summary.failing ?? 0} failing` : `${c.passed}/${c.total}`}</span>
               </button>
             );
           })}
@@ -107,8 +110,8 @@ function Reports({ report }: { report: EvalReport }) {
       <div id="eval-panel" role={entries.length > 1 ? "tabpanel" : undefined}>
         <Report key={active} run={current} />
       </div>
-      <details className="rounded-xl border border-line bg-surface">
-        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-ink">What the harness checks</summary>
+      <details className="rounded-[4px] border border-line bg-surface">
+        <summary className="label-mono cursor-pointer select-none px-4 py-3.5 text-ink hover:text-accent">What the harness checks</summary>
         <div className="border-t border-line p-4">
           <HarnessGrid />
         </div>
@@ -126,9 +129,9 @@ function Report({ run }: { run: EvalRun }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-xl border border-line bg-surface p-4">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-faint">Pass rate</div>
-          <div className={cx("tabular mt-1 text-3xl font-semibold", rate === 1 ? "text-emerald-700 dark:text-emerald-400" : "text-ink")}>
+        <div className="rounded-[4px] border border-line bg-surface p-4">
+          <div className="label-mono text-[10.5px] text-faint">Pass rate</div>
+          <div className={cx("tabular mt-2 font-serif text-[34px] leading-none tracking-[-0.02em]", rate === 1 ? "text-ship" : "text-ink")}>
             {rate == null ? "—" : `${Math.round(rate * 1000) / 10}%`}
           </div>
           <div className="tabular text-xs text-muted">
@@ -142,23 +145,23 @@ function Report({ run }: { run: EvalRun }) {
             )}
           </div>
         </div>
-        <div className="rounded-xl border border-line bg-surface p-4">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-faint">Mode</div>
+        <div className="rounded-[4px] border border-line bg-surface p-4">
+          <div className="label-mono text-[10.5px] text-faint">Mode</div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {mode ? <ModeBadge mode={mode} /> : <span className="text-sm text-muted">{run.mode ?? "—"}</span>}
             {run.data_source && <Pill mono>{run.data_source}</Pill>}
           </div>
           <div className="mt-1 break-words font-mono text-xs text-muted">{run.models?.length ? run.models.join(", ") : "no model"}</div>
         </div>
-        <div className="rounded-xl border border-line bg-surface p-4">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-faint">Median latency</div>
-          <div className="tabular mt-1 text-3xl font-semibold text-ink">
+        <div className="rounded-[4px] border border-line bg-surface p-4">
+          <div className="label-mono text-[10.5px] text-faint">Median latency</div>
+          <div className="tabular mt-2 font-serif text-[34px] leading-none tracking-[-0.02em] text-ink">
             {run.summary?.median_latency_ms != null ? fmtMs(run.summary.median_latency_ms) : "—"}
           </div>
           <div className="text-xs text-muted">per case, end to end</div>
         </div>
-        <div className="rounded-xl border border-line bg-surface p-4">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-faint">Generated</div>
+        <div className="rounded-[4px] border border-line bg-surface p-4">
+          <div className="label-mono text-[10.5px] text-faint">Generated</div>
           <div className="mt-1 break-words font-mono text-sm text-ink">{run.generated_at ?? "unknown"}</div>
         </div>
       </div>
@@ -211,19 +214,15 @@ function CaseRow({ c, idx }: { c: EvalCase; idx: number }) {
       <div className="flex flex-wrap items-start gap-3">
         <span
           className={cx(
-            "mt-0.5 rounded px-1.5 py-0.5 font-mono text-[11px] font-bold",
-            c.passed
-              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200"
-              : c.passed === false
-                ? "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-200"
-                : "bg-sunken text-muted",
+            "mt-0.5 rounded-[3px] border px-1.5 py-0.5 font-mono text-[10.5px] tracking-[0.06em]",
+            c.passed ? "border-ship/45 bg-ship/10 text-ship" : c.passed === false ? "border-block/45 bg-block/10 text-block" : "border-line bg-sunken text-muted",
           )}
         >
           {c.passed ? "PASS" : c.passed === false ? "FAIL" : "N/A"}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs font-semibold text-ink">{c.id ?? `case ${idx + 1}`}</span>
+            <span className="font-mono text-xs font-medium text-ink">{c.id ?? `case ${idx + 1}`}</span>
             {servedMode && <ModeBadge mode={servedMode} />}
             {c.runs != null && c.runs > 1 && (
               <Pill tone={c.stability === "stable" ? "green" : c.stability === "flaky" ? "amber" : "red"}>
@@ -242,10 +241,10 @@ function CaseRow({ c, idx }: { c: EvalCase; idx: number }) {
       {open && (
         <div className="mt-3 space-y-3 sm:pl-12">
           {checks.length > 0 && (
-            <ul className="space-y-1 rounded-md border border-line p-2">
+            <ul className="space-y-1 rounded-[3px] border border-line p-2">
               {checks.map((k, i) => (
                 <li key={i} className="flex flex-wrap gap-x-2 text-xs">
-                  <span className={cx("font-mono font-bold", k.passed ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                  <span className={cx("font-mono", k.passed ? "text-ship" : "text-block")}>
                     {k.passed ? "PASS" : "FAIL"}
                   </span>
                   <span className="font-mono text-ink">{checkLabel(k, i)}</span>
@@ -270,8 +269,8 @@ function CaseRow({ c, idx }: { c: EvalCase; idx: number }) {
 
 function ValueBox({ label, value }: { label: string; value: unknown }) {
   return (
-    <div className="min-w-0 rounded-md border border-line">
-      <div className="border-b border-line px-2 py-1 text-[11px] uppercase tracking-wider text-faint">{label}</div>
+    <div className="min-w-0 rounded-[3px] border border-line">
+      <div className="border-b border-line px-2 py-1 label-mono text-[10.5px] text-faint">{label}</div>
       <div className="p-2">
         <Value value={value} />
       </div>
@@ -292,7 +291,7 @@ function Value({ value }: { value: unknown }) {
           typeof v === "string" && isRecordId(v) ? (
             <EvidenceChip key={i} id={v} />
           ) : (
-            <span key={i} className="rounded bg-sunken px-1.5 py-px font-mono text-[11px] text-ink">
+            <span key={i} className="rounded-[3px] bg-sunken px-1.5 py-px font-mono text-[11px] text-ink">
               {typeof v === "string" ? v : JSON.stringify(v)}
             </span>
           ),
@@ -310,7 +309,7 @@ function Value({ value }: { value: unknown }) {
             {k === "answer" && typeof v === "string" ? (
               <details>
                 <summary className="cursor-pointer select-none text-xs text-muted">Show answer</summary>
-                <div className="mt-1 rounded border border-line p-2 text-sm">
+                <div className="mt-1 rounded-[3px] border border-line p-2 text-sm">
                   <Markdown source={v} />
                 </div>
               </details>

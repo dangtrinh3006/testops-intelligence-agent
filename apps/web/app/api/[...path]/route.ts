@@ -27,10 +27,13 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
       signal: AbortSignal.timeout(115_000),
       cache: "no-store",
     });
-    const out = new Headers({ "content-type": res.headers.get("content-type") ?? "application/json", "cache-control": "no-store" });
+    const type = res.headers.get("content-type") ?? "application/json";
+    const out = new Headers({ "content-type": type, "cache-control": "no-store, no-transform" });
     const rid = res.headers.get("x-request-id");
     if (rid) out.set("x-request-id", rid);
-    return new Response(await res.arrayBuffer(), { status: res.status, headers: out });
+    // Pass the body through as a stream so server-sent events reach the browser as they happen.
+    if (type.startsWith("text/event-stream")) out.set("x-accel-buffering", "no");
+    return new Response(res.body, { status: res.status, headers: out });
   } catch (e) {
     const timeout = e instanceof Error && e.name === "TimeoutError";
     return Response.json(

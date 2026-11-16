@@ -1,6 +1,6 @@
 # Business case — pilot proposal
 
-Minutes 45–55 of the meeting. Everything here is a proposed commercial option for a fictional prospect, not an AITOMATIC offering. Dollar figures are illustrative and say so.
+Minutes 45–55 of the meeting. Everything here is a proposed commercial option for a fictional prospect, not an AITOMATIC offering. Dollar figures are illustrative and say so. On screen: [`/pilot`](https://testops.dangtrinh.dev/pilot) (timeline, success criteria, ROI calculator, risks, exit criteria).
 
 ## 1. Positioning
 

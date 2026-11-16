@@ -4,14 +4,19 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ApiError, api, ASK_TIMEOUT_MS, errorMessage } from "@/lib/api";
 import { useHealth, useOverview } from "@/lib/hooks";
 import type { AskRequest, AskResponse, Mode } from "@/lib/types";
-import { buttonClass, Card, cx, ModeBadge, Spinner } from "../ui";
+import { buttonClass, Card, cx, ModeBadge, PanelBar, Spinner, StatusChip } from "../ui";
+import { askStream, StreamError, type StreamEvent } from "@/lib/stream";
+import { LiveTrace } from "./LiveTrace";
 import { ResultView } from "./ResultView";
 
 const PRESET_LABEL: Record<string, string> = {
-  A: "A · Failure triage",
-  B: "B · Flaky tests & cost",
-  C: "C · Conflicting evidence",
+  A: "Failure triage",
+  B: "Flaky tests & cost",
+  C: "Conflicting evidence",
 };
+
+// Fired by the console hero to run a preset from outside this component.
+export const RUN_PRESET_EVENT = "testops:run-preset";
 
 const MODES: { id: Mode; label: string; explain: string }[] = [
   {
@@ -33,9 +38,9 @@ const MODES: { id: Mode; label: string; explain: string }[] = [
 
 type RunState =
   | { status: "idle" }
-  | { status: "loading"; req: AskRequest; seq: number }
-  | { status: "done"; req: AskRequest; res: AskResponse }
-  | { status: "error"; req: AskRequest; error: unknown };
+  | { status: "loading"; req: AskRequest; seq: number; events: StreamEvent[]; startedAt: number }
+  | { status: "done"; req: AskRequest; res: AskResponse; events: StreamEvent[]; startedAt: number }
+  | { status: "error"; req: AskRequest; error: unknown; events: StreamEvent[]; startedAt: number };
 
 export function Console() {
   const health = useHealth();
@@ -66,18 +71,45 @@ export function Console() {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     seqRef.current += 1;
-    setRun({ status: "loading", req, seq: seqRef.current });
+    const seq = seqRef.current;
+    const startedAt = performance.now();
+    const events: StreamEvent[] = [];
+    setRun({ status: "loading", req, seq, events: [], startedAt });
+    const onEvent = (ev: StreamEvent) => {
+      if (abortRef.current !== ctrl) return;
+      if (ev.type === "notice" && ev.data.reset) events.length = 0; // primary model failed: the fallback restarts the graph
+      events.push(ev);
+      setRun({ status: "loading", req, seq, events: [...events], startedAt });
+    };
     try {
-      const res = await api.ask(req, ctrl.signal);
-      if (abortRef.current === ctrl) setRun({ status: "done", req, res });
+      let res: AskResponse;
+      try {
+        res = await askStream(req, onEvent, ctrl.signal);
+      } catch (e) {
+        // An HTTP error (rate limit, validation) is final; a dropped stream falls back to the plain endpoint.
+        if (ctrl.signal.aborted || (e instanceof StreamError && e.status != null)) throw e;
+        onEvent({ type: "notice", at: performance.now() - startedAt, data: { message: "Stream interrupted; fetching the answer without streaming." } });
+        res = await api.ask(req, ctrl.signal);
+      }
+      if (abortRef.current === ctrl) setRun({ status: "done", req, res, events: [...events], startedAt });
     } catch (e) {
       if (abortRef.current !== ctrl) return;
-      if (e instanceof ApiError && e.kind === "aborted") setRun({ status: "idle" });
-      else setRun({ status: "error", req, error: e });
+      if ((e instanceof ApiError && e.kind === "aborted") || (e instanceof DOMException && e.name === "AbortError")) setRun({ status: "idle" });
+      else {
+        const err = e instanceof StreamError ? new ApiError("http", e.message, e.status ?? undefined) : e;
+        setRun({ status: "error", req, error: err, events: [...events], startedAt });
+      }
     }
   };
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  const runPresetRef = useRef<(id: string) => void>(() => {});
+  useEffect(() => {
+    const onRun = (e: Event) => runPresetRef.current(String((e as CustomEvent<string>).detail));
+    window.addEventListener(RUN_PRESET_EVENT, onRun);
+    return () => window.removeEventListener(RUN_PRESET_EVENT, onRun);
+  }, []);
 
   useEffect(() => {
     if (run.status === "done" || run.status === "error") {
@@ -96,6 +128,13 @@ export function Console() {
     ask(q, id);
   };
 
+  useEffect(() => {
+    runPresetRef.current = (id: string) => {
+      const p = presets.find((x) => x.id === id);
+      if (p && run.status !== "loading") runPreset(p.id, p.question);
+    };
+  });
+
   const busy = run.status === "loading";
   const tooShort = question.trim().length < 3;
   const canSubmit = !busy && !tooShort && !replayBlocked;
@@ -103,15 +142,21 @@ export function Console() {
   return (
     <div className="space-y-6">
       <Card aria-labelledby="ask-title">
-        <div className="border-b border-line px-4 py-3 sm:px-5">
-          <h2 id="ask-title" className="text-sm font-semibold text-ink">
+        <PanelBar label="agent · read-only">
+          <StatusChip tone="amber" dot>
+            gate: deterministic · verify
+          </StatusChip>
+          <ModeBadge mode={mode} />
+        </PanelBar>
+        <div className="border-b border-line px-4 py-4 sm:px-5">
+          <h2 id="ask-title" className="font-serif text-[1.45rem] leading-tight tracking-[-0.02em] text-ink">
             Ask the agent
           </h2>
-          <p className="mt-0.5 text-xs text-muted">Read-only. The agent reaches data only through bounded tools; the policy function decides verdicts.</p>
+          <p className="mt-1 text-[13.5px] text-muted">Read-only. The agent reaches data only through bounded tools; the policy function decides verdicts.</p>
         </div>
-        <div className="space-y-4 p-4 sm:p-5">
+        <div className="space-y-5 p-4 sm:p-5">
           <div>
-            <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-faint" id="presets-label">
+            <div className="label-mono mb-2 text-faint" id="presets-label">
               Demo scenarios
             </div>
             <div className="grid gap-2 sm:grid-cols-3" role="group" aria-labelledby="presets-label">
@@ -122,12 +167,17 @@ export function Console() {
                   disabled={!p.question || busy}
                   onClick={() => runPreset(p.id, p.question)}
                   className={cx(
-                    "group rounded-lg border border-line bg-surface p-3 text-left transition hover:border-line-strong hover:bg-sunken disabled:opacity-60",
-                    run.status !== "idle" && run.req.scenario === p.id && "border-ink/60 ring-1 ring-ink/30",
+                    "group rounded-[4px] border bg-canvas/40 p-3.5 text-left transition-colors hover:border-accent/60 hover:bg-accent/[0.05] disabled:opacity-60",
+                    run.status !== "idle" && run.req.scenario === p.id ? "border-accent/70 bg-accent/[0.07]" : "border-line",
                   )}
                 >
-                  <div className="text-sm font-semibold text-ink">{PRESET_LABEL[p.id] ?? `Preset ${p.id}`}</div>
-                  <div className="mt-1 line-clamp-2 text-xs text-muted">{p.question || "Loading…"}</div>
+                  <div className="label-mono flex items-center gap-2 text-[10.5px]">
+                    <span className="text-accent">{p.id}</span>
+                    <span aria-hidden className="text-faint">·</span>
+                    <span className="text-ink">{PRESET_LABEL[p.id] ?? `Preset ${p.id}`}</span>
+                    <span aria-hidden className="ml-auto text-faint transition-colors group-hover:text-accent">→</span>
+                  </div>
+                  <div className="mt-2 line-clamp-2 text-[13px] leading-snug text-muted">{p.question || "Loading…"}</div>
                 </button>
               ))}
             </div>
@@ -141,7 +191,7 @@ export function Console() {
             className="space-y-3"
           >
             <div>
-              <label htmlFor={qId} className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-faint">
+              <label htmlFor={qId} className="label-mono mb-2 block text-faint">
                 Your question
               </label>
               <textarea
@@ -157,16 +207,16 @@ export function Console() {
                 rows={3}
                 maxLength={600}
                 placeholder="e.g. Can we ship checkout-web 5.8.0? Which payments tests retried last week?"
-                className="block w-full resize-y rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                className="block w-full resize-y rounded-[3px] border border-line-strong bg-canvas px-3 py-2.5 text-[15px] text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40"
               />
-              <div className="mt-1 flex justify-between text-[11px] text-faint">
+              <div className="mt-1.5 flex justify-between gap-3 font-mono text-[10.5px] text-faint">
                 <span>{scenario ? `Matches preset ${scenario}` : "Free-form question"} · Ctrl/⌘+Enter to ask</span>
                 <span className="tabular">{question.length}/600</span>
               </div>
             </div>
 
             <fieldset>
-              <legend className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-faint">Mode</legend>
+              <legend className="label-mono mb-2 text-faint">Mode</legend>
               <div className="grid gap-2 sm:grid-cols-3">
                 {MODES.map((m) => {
                   const available = selectable(m.id);
@@ -183,8 +233,8 @@ export function Console() {
                     <label
                       key={m.id}
                       className={cx(
-                        "relative flex cursor-pointer gap-2.5 rounded-lg border p-3 transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
-                        checked ? "border-ink/70 bg-sunken" : "border-line hover:border-line-strong",
+                        "relative flex cursor-pointer gap-2.5 rounded-[4px] border p-3 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
+                        checked ? "border-accent/60 bg-accent/[0.06]" : "border-line hover:border-line-strong hover:bg-sunken/60",
                         !available && "cursor-not-allowed opacity-60",
                       )}
                     >
@@ -198,11 +248,11 @@ export function Console() {
                         className="mt-0.5 accent-[var(--accent)]"
                       />
                       <span className="min-w-0">
-                        <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink">
+                        <span className="flex flex-wrap items-center gap-2 text-[14px] font-medium text-ink">
                           {m.label} <ModeBadge mode={m.id} />
                         </span>
-                        <span className="mt-0.5 block text-xs text-muted">{m.explain}</span>
-                        {why && <span className="mt-1 block text-xs font-medium text-amber-700 dark:text-amber-300">{why}</span>}
+                        <span className="mt-1 block text-[12.5px] leading-snug text-muted">{m.explain}</span>
+                        {why && <span className="mt-1 block text-[12px] font-medium text-accent">{why}</span>}
                       </span>
                     </label>
                   );
@@ -214,6 +264,7 @@ export function Console() {
               <button type="submit" disabled={!canSubmit} className={buttonClass("primary", "md")}>
                 {busy ? <Spinner /> : null}
                 Ask in {MODES.find((m) => m.id === mode)?.label.toLowerCase()} mode
+                {!busy && <span aria-hidden>→</span>}
               </button>
               {busy && (
                 <button type="button" onClick={() => abortRef.current?.abort()} className={buttonClass("ghost", "md")}>
@@ -232,7 +283,12 @@ export function Console() {
             `Answer ready${run.res.gate ? `. Verdict ${run.res.gate.verdict}, rule ${run.res.gate.deciding_rule}` : ""}. Validation ${run.res.validation.passed ? "passed" : "failed"}.`}
           {run.status === "error" && `Request failed: ${errorMessage(run.error)}`}
         </div>
-        {run.status === "loading" && <LoadingCard key={run.seq} mode={run.req.mode} />}
+        {run.status !== "idle" && (
+          <div className="mb-4">
+            <LiveTrace key={run.startedAt} events={run.events} running={run.status === "loading"} startedAt={run.startedAt} />
+          </div>
+        )}
+        {run.status === "loading" && run.events.length === 0 && <LoadingCard key={run.seq} mode={run.req.mode} />}
         {run.status === "error" && (
           <ErrorCard
             error={run.error}
@@ -258,18 +314,18 @@ function LoadingCard({ mode }: { mode: Mode }) {
   return (
     <Card>
       <div className="flex flex-wrap items-center gap-4 p-5">
-        <Spinner className="size-5 text-muted" />
+        <Spinner className="size-5 text-accent" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 text-sm text-ink">
-            <span className="font-medium">Working</span>
+            <span className="label-mono text-ink">Working</span>
             <ModeBadge mode={mode} />
             <span className="tabular font-mono text-muted">{s.toFixed(1)}s</span>
           </div>
-          <div className="mt-1 text-xs text-muted">
+          <div className="mt-1 font-mono text-[11.5px] text-muted">
             Planning <span aria-hidden>→</span> Calling tools <span aria-hidden>→</span> Validating
           </div>
         </div>
-        <div className="text-[11px] text-faint">times out after {Math.round(ASK_TIMEOUT_MS / 1000)}s</div>
+        <div className="font-mono text-[10.5px] text-faint">times out after {Math.round(ASK_TIMEOUT_MS / 1000)}s</div>
       </div>
     </Card>
   );
@@ -286,15 +342,15 @@ function ErrorCard({ error, mode, onRetry, onOffline }: { error: unknown; mode: 
           ? "Cannot reach the agent API"
           : "The request failed";
   return (
-    <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-950 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100">
-      <div className="font-semibold">{title}</div>
-      <p className="mt-1">{errorMessage(error)}</p>
+    <div role="alert" className="rounded-[4px] border border-block/45 bg-block/[0.07] p-5 text-sm text-ink">
+      <div className="label-mono text-block">{title}</div>
+      <p className="mt-1.5 text-muted">{errorMessage(error)}</p>
       {(e?.code || e?.requestId) && (
-        <p className="mt-1 font-mono text-xs opacity-80">
+        <p className="mt-1 font-mono text-xs text-faint">
           {e.code && <>code {e.code}</>} {e.requestId && <>· request {e.requestId}</>}
         </p>
       )}
-      <p className="mt-2 text-xs opacity-80">Your question is kept above.</p>
+      <p className="mt-2 text-xs text-faint">Your question is kept above.</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button type="button" onClick={onRetry} className={buttonClass("secondary")}>
           Retry

@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { AskResponse, GateView, Mode } from "@/lib/types";
 import { ChipList, EvidenceChip, LinkifiedText } from "../Evidence";
 import { Markdown } from "../Markdown";
-import { Card, CardHeader, cx, ModeBadge, Pill, VERDICT_ACCENT, VerdictBadge, verdictLabel } from "../ui";
+import { Card, CardHeader, cx, ModeBadge, PanelBar, Pill, StatusChip, VERDICT_ACCENT, VERDICT_TEXT, VerdictBadge, verdictLabel } from "../ui";
 import { SourceConflict } from "./SourceConflict";
 
 const CHECK_LABEL: Record<string, string> = {
@@ -24,16 +24,16 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
       {(res.notice || requestedMode !== res.mode) && (
         <div
           role="note"
-          className="flex flex-wrap items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm text-indigo-950 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-100"
+          className="flex flex-wrap items-start gap-3 rounded-[4px] border border-violet/35 bg-violet/[0.06] px-4 py-3 text-sm text-ink"
         >
           <ModeBadge mode={res.mode} />
           <div className="min-w-0 flex-1">
             {requestedMode !== res.mode && (
-              <p className="font-medium">
+              <p className="font-mono text-[12px] uppercase tracking-[0.06em] text-violet">
                 Requested {requestedMode.toUpperCase()}, served {res.mode.toUpperCase()}.
               </p>
             )}
-            {res.notice && <p>{res.notice}</p>}
+            {res.notice && <p className="mt-0.5 text-muted">{res.notice}</p>}
           </div>
         </div>
       )}
@@ -43,21 +43,27 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
           {res.gate ? <VerdictCard gate={res.gate} /> : <NoVerdictCard />}
         </div>
         <Card className="lg:col-span-7" aria-labelledby="answer-title">
-          <CardHeader id="answer-title" title="Answer" eyebrow={res.mode === "offline" ? "Template text, no model" : "Explanation"}>
+          <PanelBar label={res.mode === "offline" ? "answer · template text, no model" : "answer · model explanation"}>
+            <ModeBadge mode={res.mode} />
+            <StatusChip tone={res.validation.passed ? "green" : "red"} dot>
+              validator {res.validation.passed ? "pass" : "fail"}
+            </StatusChip>
+          </PanelBar>
+          <CardHeader id="answer-title" title="Answer">
             <span className="break-words">“{res.question}”</span>
           </CardHeader>
           <div className="space-y-4 p-4 sm:p-5">
             <Markdown source={res.answer} />
             {res.recommendation && (
-              <div className="rounded-lg border border-line bg-sunken/70 p-3">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-faint">Recommended next action</div>
-                <p className="mt-1 text-sm font-medium text-ink">
+              <div className="rounded-[4px] border border-accent/30 bg-accent/[0.05] p-3.5">
+                <div className="label-mono text-accent">Recommended next action →</div>
+                <p className="mt-1.5 text-sm text-ink">
                   <LinkifiedText text={res.recommendation} />
                 </p>
               </div>
             )}
             {!res.gate && /flak/i.test(res.question) && (
-              <Link href="/flaky" className="inline-block text-sm text-accent underline underline-offset-2">
+              <Link href="/flaky" className="inline-block font-mono text-[12px] uppercase tracking-[0.08em] text-accent hover:text-accent-hover">
                 Open the flaky-test table and cost model →
               </Link>
             )}
@@ -76,24 +82,22 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
                 <span
                   aria-label={c.supported ? "Supported" : "Unsupported"}
                   className={cx(
-                    "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                    c.supported
-                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300",
+                    "mt-0.5 flex h-5 min-w-7 shrink-0 items-center justify-center rounded-[3px] border font-mono text-[10.5px]",
+                    c.supported ? "border-ship/40 text-ship" : "border-accent/50 text-accent",
                   )}
                 >
-                  {c.supported ? "✓" : "⚠"}
+                  {String(i + 1).padStart(2, "0")}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-ink">
                     <LinkifiedText text={c.text} />
                   </p>
-                  {c.note && <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">{c.note}</p>}
+                  {c.note && <p className="mt-1 text-xs text-accent">{c.note}</p>}
                   <div className="mt-1.5">
                     {c.evidence.length ? (
                       <ChipList ids={c.evidence} missing={missing} />
                     ) : (
-                      <span className="text-xs text-amber-700 dark:text-amber-300">No evidence cited</span>
+                      <span className="font-mono text-[11px] text-accent">No evidence cited</span>
                     )}
                   </div>
                 </div>
@@ -102,7 +106,7 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
           </ul>
           {res.evidence.length > 0 && (
             <details className="border-t border-line">
-              <summary className="cursor-pointer select-none px-4 py-2.5 text-xs font-medium text-muted sm:px-5">
+              <summary className="label-mono cursor-pointer select-none px-4 py-3 text-faint hover:text-ink sm:px-5">
                 All cited evidence ({res.evidence.length})
               </summary>
               <ul className="space-y-1.5 px-4 pb-3 sm:px-5">
@@ -125,7 +129,7 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
               <ul className="space-y-2 p-4 text-sm sm:px-5">
                 {res.data_quality_warnings.map((w, i) => (
                   <li key={i} className="flex gap-2">
-                    <span aria-hidden className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />
+                    <span aria-hidden className="mt-2 h-px w-3 shrink-0 bg-accent" />
                     <span className="min-w-0 text-ink">
                       <LinkifiedText text={w} />
                     </span>
@@ -141,7 +145,7 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
                 <ul className="space-y-1.5">
                   {res.assumptions.map((a, i) => (
                     <li key={i} className="text-ink">
-                      <span className="mr-1 font-mono text-[11px] text-faint">ASSUMPTION</span>
+                      <span className="label-mono mr-1.5 text-[10px] text-faint">Assumption</span>
                       <LinkifiedText text={a} />
                     </li>
                   ))}
@@ -150,8 +154,8 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
                 <p className="text-muted">No assumptions declared.</p>
               )}
               {res.uncertainty && (
-                <p className="rounded-md border-l-2 border-amber-400 bg-sunken/70 px-3 py-2 text-ink">
-                  <span className="mr-1 font-mono text-[11px] text-faint">UNCERTAINTY</span>
+                <p className="rounded-[3px] border-l-2 border-accent bg-sunken/70 px-3 py-2 text-ink">
+                  <span className="label-mono mr-1.5 text-[10px] text-accent">Uncertainty</span>
                   {res.uncertainty}
                 </p>
               )}
@@ -177,7 +181,7 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
               <li key={c.name} className="flex gap-3 px-4 py-2.5 sm:px-5">
                 <span
                   aria-label={c.passed ? "pass" : "fail"}
-                  className={cx("mt-0.5 font-mono text-xs font-bold", c.passed ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}
+                  className={cx("mt-0.5 w-9 shrink-0 font-mono text-[11px] font-medium", c.passed ? "text-ship" : "text-block")}
                 >
                   {c.passed ? "PASS" : "FAIL"}
                 </span>
@@ -199,11 +203,11 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
           <ol className="p-4 sm:px-5">
             {res.tool_trace.map((t, i) => (
               <li key={`${t.step}-${i}`} className="relative flex gap-3 pb-4 last:pb-0">
-                {i < res.tool_trace.length - 1 && <span aria-hidden className="absolute left-[11px] top-6 h-[calc(100%-1rem)] w-px bg-line-strong" />}
+                {i < res.tool_trace.length - 1 && <span aria-hidden className="absolute left-[11.5px] top-6 h-[calc(100%-1rem)] w-px bg-line-strong" />}
                 <span
                   className={cx(
-                    "z-10 flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-bold",
-                    t.ok ? "bg-ink text-canvas" : "bg-red-600 text-white",
+                    "z-10 flex size-6 shrink-0 items-center justify-center rounded-full border bg-surface font-mono text-[10.5px]",
+                    t.ok ? "border-accent/60 text-accent" : "border-block text-block",
                   )}
                   aria-label={`Step ${t.step}${t.ok ? "" : ", failed"}`}
                 >
@@ -211,17 +215,17 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-sm font-semibold text-ink">{t.tool}</span>
+                    <span className="font-mono text-[13px] font-medium text-ink">{t.tool}</span>
                     <span className="tabular font-mono text-[11px] text-faint">{t.ms} ms</span>
                     {!t.ok && <Pill tone="red">error</Pill>}
                   </div>
-                  <pre className="mt-1 overflow-x-auto rounded-md bg-sunken px-2 py-1 font-mono text-[11px] text-muted">{JSON.stringify(t.args)}</pre>
+                  <pre className="mt-1.5 overflow-x-auto rounded-[3px] border border-line bg-canvas px-2 py-1 font-mono text-[11px] text-muted">{JSON.stringify(t.args)}</pre>
                   <p className="mt-1 text-xs text-ink">
                     <LinkifiedText text={t.summary} />
                   </p>
                   {t.evidence.length > 0 && (
                     <details className="mt-1">
-                      <summary className="cursor-pointer select-none text-[11px] text-faint">{t.evidence.length} record ids returned</summary>
+                      <summary className="cursor-pointer select-none font-mono text-[10.5px] text-faint hover:text-ink">{t.evidence.length} record ids returned</summary>
                       <div className="mt-1">
                         <ChipList ids={t.evidence} />
                       </div>
@@ -234,7 +238,7 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
         </Card>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-xs text-muted">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[4px] border border-line bg-surface px-4 py-2.5 font-mono text-[11px] text-muted">
         <ModeBadge mode={res.mode} />
         <span>
           model <span className="font-mono text-ink">{res.model ?? "none"}</span>
@@ -251,59 +255,60 @@ export function ResultView({ res, requestedMode }: { res: AskResponse; requested
 function VerdictCard({ gate }: { gate: GateView }) {
   const deciding = gate.checks.find((c) => c.triggered);
   return (
-    <Card className={cx("h-full border-t-4", VERDICT_ACCENT[gate.verdict])} aria-labelledby="verdict-title">
+    <Card className={cx("h-full border-t-2", VERDICT_ACCENT[gate.verdict])} aria-labelledby="verdict-title">
+      <PanelBar label={<span id="verdict-title">Release gate verdict</span>}>
+        <StatusChip tone="neutral">policy · not model</StatusChip>
+      </PanelBar>
       <div className="p-4 sm:p-5">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-faint" id="verdict-title">
-          Release gate verdict
+        <div className={cx("font-serif text-[30px] leading-tight tracking-[-0.02em] sm:text-[34px]", VERDICT_TEXT[gate.verdict])}>
+          {verdictLabel(gate.verdict)}
         </div>
-        <div className="mt-2">
+        <div className="mt-3">
           <VerdictBadge verdict={gate.verdict} size="lg" />
         </div>
-        <div className="mt-1 text-sm text-muted">{verdictLabel(gate.verdict)}</div>
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-2">
           <div>
-            <dt className="text-[11px] text-faint">Deciding rule</dt>
-            <dd className="font-mono font-semibold text-ink">{gate.deciding_rule}</dd>
+            <dt className="label-mono text-[10px] text-faint">Deciding rule</dt>
+            <dd className="font-mono text-ink">{gate.deciding_rule}</dd>
           </div>
           <div>
-            <dt className="text-[11px] text-faint">Policy</dt>
+            <dt className="label-mono text-[10px] text-faint">Policy</dt>
             <dd>
               <EvidenceChip id={gate.policy_id} />
             </dd>
           </div>
           <div>
-            <dt className="text-[11px] text-faint">Rules version</dt>
+            <dt className="label-mono text-[10px] text-faint">Rules version</dt>
             <dd className="font-mono text-ink">{gate.rules_version}</dd>
           </div>
           <div>
-            <dt className="text-[11px] text-faint">Run</dt>
+            <dt className="label-mono text-[10px] text-faint">Run</dt>
             <dd>
               <EvidenceChip id={gate.run_id} />
             </dd>
           </div>
         </dl>
-        <p className="mt-4 flex items-start gap-2 rounded-md bg-sunken px-3 py-2 text-xs text-ink">
-          <span aria-hidden>⚖</span>
+        <p className="mt-4 flex items-start gap-2 rounded-[3px] border-l-2 border-accent bg-sunken px-3 py-2 text-xs text-muted">
           <span>
             Computed by a deterministic policy function, not by the model. The model may only explain it; a mismatch fails validation.
           </span>
         </p>
       </div>
       <div className="border-t border-line">
-        <div className="px-4 pt-3 text-[11px] font-medium uppercase tracking-wider text-faint sm:px-5">Gate checks · first match wins</div>
+        <div className="label-mono px-4 pt-3 text-faint sm:px-5">Gate checks · first match wins</div>
         <ol className="space-y-1.5 px-4 py-3 sm:px-5">
           {gate.checks.map((c) => {
             const isDeciding = c === deciding;
             return (
-              <li key={c.condition} className={cx("rounded-md px-2 py-1.5 text-xs", isDeciding ? "bg-sunken ring-1 ring-line-strong" : "")}>
+              <li key={c.condition} className={cx("rounded-[3px] border px-2 py-1.5 text-xs", isDeciding ? "border-accent/40 bg-accent/[0.06]" : "border-transparent")}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     aria-label={c.triggered ? "triggered" : "not triggered"}
-                    className={cx("size-2 shrink-0 rounded-full", c.triggered ? "bg-amber-500" : "bg-line-strong")}
+                    className={cx("size-1.5 shrink-0 rounded-full", c.triggered ? "bg-accent" : "bg-line-strong")}
                   />
-                  <span className={cx("font-mono", c.triggered ? "font-semibold text-ink" : "text-muted")}>{c.condition}</span>
+                  <span className={cx("font-mono", c.triggered ? "text-ink" : "text-faint")}>{c.condition}</span>
                   <span className="font-mono text-faint">{c.rule}</span>
-                  {isDeciding && <Pill tone="violet">decides</Pill>}
+                  {isDeciding && <Pill tone="amber" mono>decides</Pill>}
                 </div>
                 {c.triggered && (
                   <p className="mt-1 pl-4 text-muted">
@@ -323,10 +328,10 @@ function NoVerdictCard() {
   return (
     <Card className="h-full" aria-labelledby="noverdict-title">
       <div className="p-4 sm:p-5">
-        <div id="noverdict-title" className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+        <div id="noverdict-title" className="label-mono text-faint">
           Release gate verdict
         </div>
-        <p className="mt-2 text-sm text-ink">Not evaluated for this question.</p>
+        <p className="mt-3 font-serif text-[22px] leading-snug text-ink">Not evaluated for this question.</p>
         <p className="mt-1 text-xs text-muted">
           The gate runs only when a question is about a specific run or release candidate. The agent cannot produce a SHIP/BLOCK verdict on its
           own.

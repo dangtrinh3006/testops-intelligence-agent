@@ -83,23 +83,24 @@ function Drawer({ id, depth, onClose, onBack }: { id: string; depth: number; onC
 
   return (
     <div className="fixed inset-0 z-40">
-      <div aria-hidden className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px]" onClick={onClose} />
+      <div aria-hidden className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onClick={onClose} />
       <div
         ref={panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby="inspector-title"
-        className="absolute inset-0 flex flex-col overflow-y-auto bg-surface shadow-2xl sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[min(640px,92vw)] sm:border-l sm:border-line"
+        className="absolute inset-0 flex flex-col overflow-y-auto bg-surface shadow-[0_0_60px_rgba(0,0,0,0.6)] sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[min(640px,92vw)] sm:border-l sm:border-line-strong"
       >
         <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur">
+          <span aria-hidden className="h-8 w-px shrink-0 bg-accent" />
           {depth > 1 && (
             <button type="button" onClick={onBack} className={buttonClass("ghost")} aria-label="Back to previous record">
               ← Back
             </button>
           )}
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-faint">Evidence inspector · {idKind(id)}</div>
-            <h2 id="inspector-title" className="break-all font-mono text-sm font-semibold text-ink">
+            <div className="label-mono text-[10.5px] text-accent">Evidence inspector · {idKind(id)}</div>
+            <h2 id="inspector-title" className="mt-0.5 break-all font-mono text-[13.5px] text-ink">
               {id}
             </h2>
           </div>
@@ -143,10 +144,10 @@ function RecordLoader({ id }: { id: string }) {
   if (state.error) {
     const nf = state.error instanceof ApiError && state.error.isNotFound;
     return (
-      <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
-        <div className="font-semibold">{nf ? "Record not found" : "Could not load record"}</div>
-        <p className="mt-1">{errorMessage(state.error)}</p>
-        {nf && <p className="mt-2 text-xs">A cited id that does not resolve is exactly what the response validator is built to catch.</p>}
+      <div role="alert" className="rounded-[4px] border border-accent/40 bg-accent/[0.06] p-4 text-sm text-ink">
+        <div className="label-mono text-accent">{nf ? "Record not found" : "Could not load record"}</div>
+        <p className="mt-1.5 text-muted">{errorMessage(state.error)}</p>
+        {nf && <p className="mt-2 text-xs text-muted">A cited id that does not resolve is exactly what the response validator is built to catch.</p>}
       </div>
     );
   }
@@ -155,14 +156,14 @@ function RecordLoader({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       {state.via && (
-        <p className="rounded-md bg-sunken px-3 py-2 text-xs text-muted">
+        <p className="rounded-[3px] border border-line bg-sunken px-3 py-2 text-xs text-muted">
           Raw runner event shown through its attempt record <span className="font-mono">{state.via}</span>.
         </p>
       )}
       <RecordBody rec={state.rec} />
-      <details className="rounded-lg border border-line">
-        <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-muted">Raw JSON from /api/records</summary>
-        <pre className="max-h-96 overflow-auto border-t border-line bg-sunken p-3 font-mono text-[11px] leading-relaxed text-ink">
+      <details className="rounded-[4px] border border-line">
+        <summary className="label-mono cursor-pointer select-none px-3 py-2.5 text-faint hover:text-ink">Raw JSON from /api/records</summary>
+        <pre className="max-h-96 overflow-auto border-t border-line bg-canvas p-3 font-mono text-[11px] leading-relaxed text-muted">
           {JSON.stringify(state.rec, null, 2)}
         </pre>
       </details>
@@ -230,7 +231,7 @@ function RecordBody({ rec }: { rec: RecordResponse }) {
           </p>
           {r.record_ids.length > 0 && (
             <div>
-              <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-faint">Affected records</div>
+              <div className="label-mono mb-1.5 text-[10.5px] text-faint">Affected records</div>
               <ChipList ids={r.record_ids} />
             </div>
           )}
@@ -247,7 +248,7 @@ function RecordBody({ rec }: { rec: RecordResponse }) {
             <Pill mono tone={r.suite === "critical" ? "violet" : "neutral"}>
               {r.suite}
             </Pill>
-            {r.suite === "critical" && <span className="ml-2 text-xs text-muted">gating</span>}
+            {r.suite === "critical" && <span className="label-mono ml-2 text-[10px] text-accent">gating</span>}
           </Field>
           <Field label="Kind">{r.kind}</Field>
         </dl>
@@ -257,9 +258,9 @@ function RecordBody({ rec }: { rec: RecordResponse }) {
       const r = rec.record;
       return (
         <div className="space-y-3">
-          <p className="text-sm font-medium text-ink">{r.name}</p>
+          <p className="font-serif text-[20px] leading-snug text-ink">{r.name}</p>
           <div>
-            <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-faint">Source of truth (in order)</div>
+            <div className="label-mono mb-1.5 text-[10.5px] text-faint">Source of truth (in order)</div>
             <ol className="list-decimal space-y-1 pl-5 text-sm">
               {r.source_of_truth.map((s) => (
                 <li key={s}>{s}</li>
@@ -267,7 +268,7 @@ function RecordBody({ rec }: { rec: RecordResponse }) {
             </ol>
           </div>
           <div>
-            <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-faint">Gate precedence (first match wins)</div>
+            <div className="label-mono mb-1.5 text-[10.5px] text-faint">Gate precedence (first match wins)</div>
             <ol className="space-y-1">
               {r.gate.precedence.map((p, i) => (
                 <li key={p.when} className="flex flex-wrap items-center gap-2 text-sm">
@@ -322,8 +323,8 @@ function AttemptBody({ r }: { r: AttemptRecord }) {
         <Field label="Worker">{r.worker ?? "—"}</Field>
         <Field label="Duration">{r.duration_s != null ? `${r.duration_s}s` : <span className="text-faint">unknown (not imputed)</span>}</Field>
       </dl>
-      <div className="rounded-lg border border-line">
-        <div className="border-b border-line px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-faint">Status</div>
+      <div className="rounded-[4px] border border-line">
+        <div className="label-mono border-b border-line bg-sunken/50 px-3 py-1.5 text-[10.5px] text-faint">Status</div>
         <div className="flex flex-wrap items-center gap-2 p-3">
           <Pill tone={statusTone(r.status ?? "NO_RESULT")} mono>
             {r.status ?? "NO_RESULT"}
@@ -335,8 +336,8 @@ function AttemptBody({ r }: { r: AttemptRecord }) {
       </div>
       <TimestampView label="Started" ts={r.started} />
       <TimestampView label="Finished" ts={r.finished} />
-      <div className="rounded-lg border border-line p-3 text-sm">
-        <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-faint">Source events</div>
+      <div className="rounded-[4px] border border-line p-3 text-sm">
+        <div className="label-mono mb-2 text-[10.5px] text-faint">Source events</div>
         <dl className="space-y-2">
           <Field label="Started event">
             <span className="break-all font-mono text-xs">{r.started_event_id ?? "—"}</span>
@@ -373,8 +374,8 @@ function RunBody({ d }: { d: RunDetails }) {
         </Field>
       </dl>
       <TimestampView label="Queued" ts={d.run.queued} />
-      <div className="rounded-lg border border-line p-3">
-        <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-faint">
+      <div className="rounded-[4px] border border-line p-3">
+        <div className="label-mono mb-2 flex flex-wrap items-center gap-2 text-[10.5px] text-faint">
           CI summary (advisory)
           {s && <EvidenceChip id={s.event_id} />}
         </div>
@@ -387,15 +388,15 @@ function RunBody({ d }: { d: RunDetails }) {
             </Pill>
           </div>
         ) : (
-          <p className="text-sm text-amber-700 dark:text-amber-300">No CI summary event. Not assumed PASS (R6).</p>
+          <p className="text-sm text-accent">No CI summary event. Not assumed PASS (R6).</p>
         )}
       </div>
       {d.tests_needing_attention.length > 0 && (
         <div>
-          <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-faint">Tests needing attention</div>
+          <div className="label-mono mb-2 text-[10.5px] text-faint">Tests needing attention</div>
           <div className="space-y-4">
             {d.tests_needing_attention.map((o) => (
-              <div key={o.test_id} className="rounded-lg border border-line p-3">
+              <div key={o.test_id} className="rounded-[4px] border border-line p-3">
                 <AttemptTimeline outcome={o} />
               </div>
             ))}
@@ -404,7 +405,7 @@ function RunBody({ d }: { d: RunDetails }) {
       )}
       {d.logs.length > 0 && (
         <div className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-faint">Logs</div>
+          <div className="label-mono text-[10.5px] text-faint">Logs</div>
           <p className="text-xs text-muted">{d.logs_note}</p>
           {d.logs.map((l) => (
             <UntrustedLog key={l.event_id} text={l.untrusted_text} flagged={l.possible_prompt_injection} level={l.level} eventId={l.event_id} />
@@ -413,10 +414,10 @@ function RunBody({ d }: { d: RunDetails }) {
       )}
       {d.data_quality_findings.length > 0 && (
         <div>
-          <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-faint">Data-quality findings</div>
+          <div className="label-mono mb-2 text-[10.5px] text-faint">Data-quality findings</div>
           <ul className="space-y-2">
             {d.data_quality_findings.map((f) => (
-              <li key={f.id} className={cx("rounded-md border border-line p-2 text-sm")}>
+              <li key={f.id} className={cx("rounded-[4px] border border-line p-2.5 text-sm")}>
                 <EvidenceChip id={f.id} /> <span className="font-mono text-xs text-muted">{f.kind}</span>
                 <p className="mt-1 text-xs text-muted">
                   <LinkifiedText text={f.detail} />

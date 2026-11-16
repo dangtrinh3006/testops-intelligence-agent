@@ -23,8 +23,8 @@ flowchart LR
     VA -->|fail, once| CP
   end
   TOOLS --> TL
-  VA --> API["FastAPI /api/ask<br/>mode live · replay · offline"]
-  API --> UI["Next.js console (apps/web, Vercel)<br/>/api/* via route handler · verdict · evidence inspector · mode badge"]
+  VA --> API["FastAPI /api/ask · /api/ask/stream (SSE)<br/>mode live · replay · offline"]
+  API --> UI["Next.js console (apps/web, Vercel)<br/>/api/* via route handler · agent run panel · verdict · evidence inspector · mode badge"]
   LLM["Any OpenAI-compatible endpoint<br/>Gemini 3.5 Flash-Lite, fallback Flash"] -.explains, never decides.-> AG
 ```
 
@@ -100,6 +100,22 @@ Flake levels (`domain/flaky.py`) apply R1 to final attempts too: a final failure
 
 Why a graph rather than a single tool-calling call: two loops a single prompt cannot give. The model may keep fetching evidence until it has enough (in the recorded live traces Scenario A took 4 calls, Scenario C 2), and a deterministic checker can send the draft back with the exact defects. A straight line would be decoration; the graph is here for those two edges. Mapping to Observe–Orient–Decide–Act: tools observe, the rule file orients, `gate.evaluate` decides, the human acts.
 
+### Streaming the loop
+
+`POST /api/ask/stream` (`app/main.py`) runs the same request as `/api/ask` and returns `text/event-stream`. A worker thread iterates `service.ask_stream` and puts events on a queue; the response generator emits each one and sends `event: ping` when the queue is silent for `PING_SECONDS = 5`, so proxies and mobile networks keep the connection open while the model thinks.
+
+| Event | Emitted by | Payload |
+|---|---|---|
+| `start` | `ask_stream`, before the graph is imported | request id, mode, model, `streaming` (true only for live) |
+| `plan` | `graph.stream_live`, after each `agent` node | requested tool calls, model calls so far, `ready` (enough evidence) |
+| `tool` | after each `tools` node, one per call | tool trace entry (tool, args, ms, ok, summary) |
+| `compose` | after `compose` | attempt number, number of claims |
+| `validate` | after `validate` | passed, checks, `will_revise` |
+| `notice` | `ask_stream` when a model fails | message; `reset: true` because the fallback model restarts the graph |
+| `final` / `error` | end of the run | the full `AskResponse` / a typed error |
+
+Live mode streams real LangGraph node updates (`graph.stream_live`). Replay and offline have nothing to wait for: they emit `start` with `streaming: false`, then the recorded or deterministic tool trace, `validate` and `final` at once. The web client (`apps/web/lib/stream.ts`) reads the body with `fetch` (EventSource cannot POST) and `components/console/LiveTrace.tsx` renders the four node tiles and the event log. If the stream drops without an HTTP status, the console requests the same answer from `/api/ask`; an HTTP error (rate limit, validation) is shown as is.
+
 ## 7. Validator checks
 
 `app/agent/validator.py::validate(answer, claims, tool_results, ds, gate_verdicts)`:
@@ -126,7 +142,7 @@ No credentials configured → `live` degrades to `offline` with the notice "No m
 
 ## 9. Safety
 
-- Read-only surface: `tests/test_api.py::test_read_only_surface` asserts the only POST route is `/api/ask` and there is no PUT/PATCH/DELETE. No endpoint touches CI, releases or data.
+- Read-only surface: `tests/test_api.py::test_read_only_surface` asserts the only POST routes are `/api/ask` and `/api/ask/stream` and there is no PUT/PATCH/DELETE. No endpoint touches CI, releases or data.
 - Bounded tools: pydantic argument models (`limit <= 20`, `lookback_days 1..30`, `minutes <= 240`, `usd_per_hour <= 500`, `record_id <= 120 chars`); unknown tool names and unknown services/runs return typed errors with hints.
 - No text-to-SQL: the model never sees SQL; the Postgres path runs two fixed queries with `LIMIT 50000`, `connect_timeout=10` and `SET LOCAL statement_timeout = '8s'` issued after connect (Neon's pooler rejects startup options), under `DATABASE_URL_READONLY` (role `testops_reader`, SELECT only; `tests/test_db_parity.py::test_reader_role_cannot_write`, runs only with `TEST_DATABASE_URL`).
 - Untrusted logs: tools return log text as `untrusted_text` with `logs_note`; `INJECTION_PATTERN` flags "ignore previous instructions", "approve the release", "AI-assistant note", "system prompt"; the system prompt says to quote, not follow. The regex is a tripwire, not the defence; the defence is that the verdict field is not model-writable and the validator rejects stray verdicts.
@@ -139,14 +155,14 @@ Symptom: with a generic OpenAI-style wrapper, the second turn after a tool call 
 
 ## 11. Testing strategy
 
-46 tests in 7 files: 44 run without a database, 2 Postgres parity and read-only-role tests run when `TEST_DATABASE_URL` is set. Measured 16 Nov without a database: 44 passed, 2 skipped, 3.6 s. CI (`.github/workflows/ci.yml`, every push) provides a Postgres service, so all 46 run there, after `ruff check` (clean). No model is called in the suite (`conftest.py` removes `LLM_API_KEY` unless `TESTOPS_KEEP_LLM=1`).
+48 tests in 7 files: 46 run without a database, 2 Postgres parity and read-only-role tests run when `TEST_DATABASE_URL` is set. Measured 16 Nov without a database: 46 passed, 2 skipped. CI (`.github/workflows/ci.yml`, every push) provides a Postgres service, so all 48 run there, after `ruff check` (clean). No model is called in the suite (`conftest.py` removes `LLM_API_KEY` unless `TESTOPS_KEEP_LLM=1`).
 
 | File | Tests | Covers |
 |---|---|---|
 | `test_golden_scenarios.py` | 12 | A: BLOCK/R2 with exact evidence ids, infra retry as warning, expired quarantine; previous run SHIP. C: HOLD/R5 with both triggers and ids; twin run SHIP_WITH_WARNINGS; rc id resolves; missing summary HOLD/R6. B: exact level map for 6 tests; retry-pass never "proven" without same-commit evidence; T-CHK-011 (0, 7) after dedup; incomplete excluded; effort estimate deterministic with assumptions and override; every gate evidence id resolves for all 120 runs |
 | `test_data_quality.py` | 6 | missing `finished_at` → no duration; five timestamp formats → one UTC instant, raw preserved, unparseable detected; duplicates counted once with both ingest ids traceable; incomplete attempt and missing summary reported; vocabulary normalised with raw kept; generator SHA-256 equals committed fixtures |
 | `test_tools_and_validator.py` | 9 | unknown run/service → typed error with hint; argument bounds and unknown tool; "latest" resolves to `run-chk-main-0418`; injection line flagged; every tool's evidence resolves; validator accepts grounded, rejects invented ids/numbers/verdicts, ignores negated verdicts; offline degradation for all presets |
-| `test_api.py` | 7 | health and overview verdicts; 422 on short/long question and bad mode; offline `/api/ask` returns structured answer with `x-request-id`; records and 404s; raw event and pipeline ids resolve; replay without a recording says so; read-only route surface |
+| `test_api.py` | 9 | health and overview verdicts; 422 on short/long question and bad mode; offline `/api/ask` returns structured answer with `x-request-id`; records and 404s; raw event and pipeline ids resolve; replay without a recording says so; read-only route surface; `/api/ask/stream` emits the trace then `final`, and validates input |
 | `test_redteam_regressions.py` | 9 | one test per review finding: offline planner honours a named run id; plain-English and wrong-run SHIP claims; invented percentage; non-gating suite cannot change a verdict; unparseable queue time; cost split; quoted injection text, reported speech ("an instruction to approve the release") and long negations are not verdict claims |
 | `test_db_parity.py` | 2 | Postgres path yields identical verdicts and flake levels; seed is idempotent; reader role cannot DELETE (skipped without a database) |
 | `test_agent_evals.py` | 1 | the offline eval suite below passes every case |
@@ -171,7 +187,9 @@ Today the whole log (2,053 events) is rebuilt in memory from fixtures or from `r
 
 What does not change: the rule file, the tool contracts, the validator, the response schema.
 
-Deployment as configured on 16 Nov: the API runs as one Vercel Python function (`api/index.py` exports the FastAPI app; `vercel.json` routes every path to it, region `sin1`, `maxDuration` 120 s, bundle includes `app`, `knowledge`, `data`, `migrations`; `requirements.txt` pins the versions above; `.vercelignore` excludes tests and env files). Data source on Vercel is Neon PostgreSQL (Vercel Marketplace, `sin1`) via `DATABASE_URL_READONLY` (role `testops_reader`, SELECT only), seeded with the idempotent `python -m app.seed`. API: https://testops-agent-api.vercel.app (`/api/health`). The UI is a separate Next.js app on Vercel (`apps/web`) at https://testops.dangtrinh.dev; the route handler `apps/web/app/api/[...path]/route.ts` proxies `/api/*` to the API, reading the upstream URL at runtime, 120 s max. Measured 16 Nov: scenario A answered live end-to-end through the public site in 8.0 s. Re-check with `python scripts/smoke.py https://testops.dangtrinh.dev --live` before the meeting.
+The console page `/architecture` (`components/pages/ArchitectureView.tsx`) shows this as a table, "From MVP to production", one row per area: ingestion (signed webhooks → SQS or Kafka → idempotent normaliser workers, dead-letter queue, replay from the raw store), storage (partitioning by tenant and day, row-level security, raw events in S3), agent runtime (Postgres checkpointer, a job queue such as Temporal, per-tenant budgets), streaming (SSE plus Ably or WebSocket fan-out per release, reconnect with last event id), model access (LiteLLM gateway, per-tenant keys and spend caps, on-prem or VPC model), trust (evals as a release gate for prompt, model and rule changes; overrides become eval cases), observability (OpenTelemetry, LangFuse, dashboards on override and evidence-resolution rate) and security (SSO, RBAC, tenant isolation, secret manager, pen-test and data-processing review, audit log). The page labels that column a plan, not a feature list.
+
+Deployment as configured on 16 Nov: the API runs as one Vercel Python function (`api/index.py` exports the FastAPI app; `vercel.json` routes every path to it, region `sin1`, `maxDuration` 120 s, bundle includes `app`, `knowledge`, `data`, `migrations`; `requirements.txt` pins the versions above; `.vercelignore` excludes tests and env files). Data source on Vercel is Neon PostgreSQL (Vercel Marketplace, `sin1`) via `DATABASE_URL_READONLY` (role `testops_reader`, SELECT only), seeded with the idempotent `python -m app.seed`. API: https://testops-agent-api.vercel.app (`/api/health`). The UI is a separate Next.js app on Vercel (`apps/web`) at https://testops.dangtrinh.dev; the route handler `apps/web/app/api/[...path]/route.ts` proxies `/api/*` to the API, reading the upstream URL at runtime, 120 s max, and passes event-stream bodies through as they arrive (`x-accel-buffering: no`). Measured 16 Nov: scenario A answered live end-to-end through the public site in 8.0 s. Re-check with `python scripts/smoke.py https://testops.dangtrinh.dev --live` before the meeting.
 
 ## 13. Known limitations
 

@@ -6,7 +6,7 @@ import type { Band, FlakyResponse, FlakyTest } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 import { ChipList, EvidenceChip, LinkifiedText } from "../Evidence";
 import { Tooltip } from "../Tooltip";
-import { buttonClass, Card, CardHeader, cx, ErrorBlock, LoadingBlock, Pill } from "../ui";
+import { buttonClass, Card, CardHeader, cx, ErrorBlock, LoadingBlock, Pill, StatTile } from "../ui";
 
 // Levels outside rule R3 are not in the knowledge file; these definitions follow R1 and R2.
 const EXTRA_LEVELS: Record<string, string> = {
@@ -15,17 +15,17 @@ const EXTRA_LEVELS: Record<string, string> = {
 };
 
 const LEVEL_TONE: Record<string, string> = {
-  proven: "bg-red-600 text-white dark:bg-red-500",
-  suspected: "bg-amber-100 text-amber-900 ring-1 ring-inset ring-amber-500/40 dark:bg-amber-500/20 dark:text-amber-100",
-  possible: "bg-yellow-50 text-yellow-900 ring-1 ring-inset ring-yellow-500/40 dark:bg-yellow-500/10 dark:text-yellow-100",
-  consistent_failure: "bg-rose-50 text-rose-800 ring-1 ring-inset ring-rose-500/40 dark:bg-rose-500/15 dark:text-rose-200",
-  infra_only: "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-400/40 dark:bg-slate-500/20 dark:text-slate-200",
+  proven: "border-block bg-block/15 text-block",
+  suspected: "border-accent/60 bg-accent/10 text-accent",
+  possible: "border-accent/30 bg-transparent text-accent-hover",
+  consistent_failure: "border-block/40 bg-block/[0.06] text-block",
+  infra_only: "border-line-strong bg-sunken text-muted",
 };
 
 function LevelBadge({ level, levels, align }: { level: string; levels: Record<string, string>; align?: "start" | "end" }) {
   const def = levels[level] ?? EXTRA_LEVELS[level];
   const badge = (
-    <span className={cx("inline-flex rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold", LEVEL_TONE[level] ?? LEVEL_TONE.infra_only)}>{level}</span>
+    <span className={cx("inline-flex rounded-[3px] border px-1.5 py-0.5 font-mono text-[11px]", LEVEL_TONE[level] ?? LEVEL_TONE.infra_only)}>{level}</span>
   );
   if (!def) return badge;
   return (
@@ -33,7 +33,7 @@ function LevelBadge({ level, levels, align }: { level: string; levels: Record<st
       align={align}
       content={
         <>
-          <span className="font-mono font-semibold">{level}</span>: {def}
+          <span className="font-mono text-accent">{level}</span>: {def}
           {levels[level] && <span className="mt-1 block text-faint">Rule R3 · knowledge file</span>}
         </>
       }
@@ -55,10 +55,10 @@ export function FlakyView() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Runs analysed" value={f.scope.runs_analyzed} sub={`${f.scope.lookback_days}-day window`} />
-        <Stat label="Test retry-pass series" value={f.totals.retry_pass_series_test} sub="count toward flakiness" />
-        <Stat label="Infra retry-pass series" value={f.totals.retry_pass_series_infra} sub="platform, not the test (R1)" />
-        <Stat label="Retry CI minutes" value={f.totals.retry_minutes_measured} sub="measured durations only" />
+        <StatTile label="Runs analysed" value={f.scope.runs_analyzed} sub={`${f.scope.lookback_days}-day window`} />
+        <StatTile label="Test retry-pass series" value={f.totals.retry_pass_series_test} sub="count toward flakiness" />
+        <StatTile label="Infra retry-pass series" value={f.totals.retry_pass_series_infra} sub="platform, not the test (R1)" />
+        <StatTile label="Retry CI minutes" value={f.totals.retry_minutes_measured} sub="measured durations only" />
       </div>
 
       <Card aria-labelledby="flaky-title">
@@ -67,22 +67,22 @@ export function FlakyView() {
         </CardHeader>
         <div className="hidden overflow-x-auto md:block xl:overflow-visible">
           <table className="w-full text-sm">
-            <thead className="bg-sunken/60 text-left text-[11px] uppercase tracking-wider text-faint">
+            <thead className="label-mono border-b border-line bg-sunken/50 text-left text-[10.5px] text-faint">
               <tr>
-                <th scope="col" className="px-4 py-2 font-medium">Test</th>
-                <th scope="col" className="px-3 py-2 font-medium">Service</th>
-                <th scope="col" className="px-3 py-2 font-medium">Level</th>
-                <th scope="col" className="px-3 py-2 text-right font-medium">1st-attempt fail rate</th>
-                <th scope="col" className="px-3 py-2 text-right font-medium">Test retry-passes</th>
-                <th scope="col" className="px-3 py-2 text-right font-medium">Infra retry-passes</th>
-                <th scope="col" className="px-3 py-2 text-right font-medium">Final failures</th>
-                <th scope="col" className="px-3 py-2 text-right font-medium">Incomplete excluded</th>
-                <th scope="col" className="px-4 py-2 text-right font-medium">Retry CI min</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Test</th>
+                <th scope="col" className="px-3 py-2.5 font-medium">Service</th>
+                <th scope="col" className="px-3 py-2.5 font-medium">Level</th>
+                <th scope="col" className="px-3 py-2.5 text-right font-medium">1st-attempt fail rate</th>
+                <th scope="col" className="px-3 py-2.5 text-right font-medium">Test retry-passes</th>
+                <th scope="col" className="px-3 py-2.5 text-right font-medium">Infra retry-passes</th>
+                <th scope="col" className="px-3 py-2.5 text-right font-medium">Final failures</th>
+                <th scope="col" className="px-3 py-2.5 text-right font-medium">Incomplete excluded</th>
+                <th scope="col" className="px-4 py-2.5 text-right font-medium">Retry CI min</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {f.tests.map((t) => (
-                <tr key={t.test_id} className="align-top">
+                <tr key={t.test_id} className="align-top transition-colors hover:bg-sunken/40">
                   <td className="px-4 py-3">
                     <EvidenceChip id={t.test_id} />
                     <div className="mt-1 max-w-xs text-xs text-muted">{t.name}</div>
@@ -106,7 +106,7 @@ export function FlakyView() {
                   <td className="tabular px-4 py-3 text-right">
                     {t.retry_minutes_measured}
                     {t.retry_attempts_without_duration > 0 && (
-                      <div className="text-[11px] text-amber-700 dark:text-amber-300">+{t.retry_attempts_without_duration} without duration</div>
+                      <div className="text-[11px] text-accent">+{t.retry_attempts_without_duration} without duration</div>
                     )}
                   </td>
                 </tr>
@@ -137,7 +137,7 @@ export function FlakyView() {
           ))}
         </ul>
         <details className="border-t border-line">
-          <summary className="cursor-pointer select-none px-4 py-2.5 text-xs font-medium text-muted sm:px-5">Evidence attempts per test</summary>
+          <summary className="label-mono cursor-pointer select-none px-4 py-3 text-faint hover:text-ink sm:px-5">Evidence attempts per test</summary>
           <ul className="space-y-2 px-4 pb-3 sm:px-5">
             {f.tests.map((t) => (
               <li key={t.test_id} className="text-xs">
@@ -155,7 +155,7 @@ export function FlakyView() {
           <ul className="space-y-2 p-4 text-sm sm:px-5">
             {f.data_handling.map((d, i) => (
               <li key={i} className="flex gap-2">
-                <span aria-hidden className="mt-1.5 size-1.5 shrink-0 rounded-full bg-line-strong" />
+                <span aria-hidden className="mt-2.5 h-px w-3 shrink-0 bg-accent" />
                 <span className="min-w-0">
                   <LinkifiedText text={d} />
                 </span>
@@ -178,20 +178,10 @@ function MixedCommits({ t }: { t: FlakyTest }) {
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
-  return (
-    <div className="rounded-xl border border-line bg-surface p-3">
-      <div className="text-[11px] font-medium uppercase tracking-wider text-faint">{label}</div>
-      <div className="tabular mt-1 text-2xl font-semibold text-ink">{value}</div>
-      {sub && <div className="text-[11px] text-muted">{sub}</div>}
-    </div>
-  );
-}
-
 function MiniStat({ label, value }: { label: string; value: number | string }) {
   return (
     <div>
-      <dt className="text-[10px] uppercase tracking-wider text-faint">{label}</dt>
+      <dt className="label-mono text-[10px] text-faint">{label}</dt>
       <dd className="tabular text-ink">{value}</dd>
     </div>
   );
@@ -239,11 +229,11 @@ function CostModel({ cost }: { cost: FlakyResponse["cost"] }) {
         }
       />
       <div className="space-y-4 p-4 sm:p-5">
-        <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-sunken px-3 py-2 font-mono text-xs text-ink">{cost.formula.replace(/;\s*/g, ";\n")}</pre>
+        <pre className="overflow-x-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-[3px] border border-line bg-canvas px-3 py-2 font-mono text-xs text-accent-hover">{cost.formula.replace(/;\s*/g, ";\n")}</pre>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border border-line p-3">
-            <div className="text-[11px] uppercase tracking-wider text-faint">Triage investigations (measured)</div>
-            <div className="tabular text-xl font-semibold text-ink">{n}</div>
+          <div className="rounded-[4px] border border-line p-3">
+            <div className="label-mono text-[10.5px] text-faint">Triage investigations (measured)</div>
+            <div className="tabular mt-1 font-serif text-[26px] leading-tight text-ink">{n}</div>
             {cost.measured.split && (
               <div className="tabular text-[11px] text-ink">
                 {cost.measured.split.test_retry_passes} test retries · {cost.measured.split.infra_retry_passes} infra retries · {cost.measured.split.final_failures} final failures
@@ -252,15 +242,15 @@ function CostModel({ cost }: { cost: FlakyResponse["cost"] }) {
             <div className="text-[11px] text-muted">{cost.measured.window_days} days · not only flaky tests: every failure an engineer looks at</div>
           </div>
           {cost.measured.retry_ci_minutes != null && (
-            <div className="rounded-lg border border-line p-3">
-              <div className="text-[11px] uppercase tracking-wider text-faint">Retry CI minutes</div>
-              <div className="tabular text-xl font-semibold text-ink">{cost.measured.retry_ci_minutes}</div>
+            <div className="rounded-[4px] border border-line p-3">
+              <div className="label-mono text-[10.5px] text-faint">Retry CI minutes</div>
+              <div className="tabular mt-1 font-serif text-[26px] leading-tight text-ink">{cost.measured.retry_ci_minutes}</div>
               <div className="text-[11px] text-muted">measured, not part of the cost</div>
             </div>
           )}
           {cost.measured.breakdown && (
-            <div className="col-span-2 rounded-lg border border-line p-3 sm:col-span-1">
-              <div className="text-[11px] uppercase tracking-wider text-faint">Breakdown</div>
+            <div className="col-span-2 rounded-[4px] border border-line p-3 sm:col-span-1">
+              <div className="label-mono text-[10.5px] text-faint">Breakdown</div>
               <ul className="mt-1 grid grid-cols-2 gap-x-3 text-xs">
                 {Object.entries(cost.measured.breakdown).map(([k, v]) => (
                   <li key={k} className="flex justify-between font-mono">
@@ -276,7 +266,7 @@ function CostModel({ cost }: { cost: FlakyResponse["cost"] }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <caption className="sr-only">Low, base and high cost scenarios; minutes and rates are editable assumptions</caption>
-            <thead className="text-left text-[11px] uppercase tracking-wider text-faint">
+            <thead className="text-left label-mono text-[10.5px] text-faint">
               <tr>
                 <th scope="col" className="py-1.5 pr-2 font-medium">Scenario</th>
                 <th scope="col" className="px-2 py-1.5 font-medium">Min / investigation</th>
@@ -293,11 +283,11 @@ function CostModel({ cost }: { cost: FlakyResponse["cost"] }) {
                     <th scope="row" className="py-2 pr-2 text-left capitalize text-ink">{b}</th>
                     <td className="px-2 py-2">
                       <label className="sr-only" htmlFor={`${uid}-m-${b}`}>Minutes per investigation, {b}</label>
-                      <input id={`${uid}-m-${b}`} type="number" min={0} max={240} step={1} value={a.minutes[b]} onChange={(e) => set("minutes", b, e.target.value)} className="tabular w-16 rounded-md border border-line-strong bg-surface px-2 py-1 text-sm" />
+                      <input id={`${uid}-m-${b}`} type="number" min={0} max={240} step={1} value={a.minutes[b]} onChange={(e) => set("minutes", b, e.target.value)} className="tabular w-16 rounded-[3px] border border-line-strong bg-canvas px-2 py-1 font-mono text-sm text-ink focus:border-accent focus:outline-none" />
                     </td>
                     <td className="px-2 py-2">
                       <label className="sr-only" htmlFor={`${uid}-r-${b}`}>USD per hour, {b}</label>
-                      <input id={`${uid}-r-${b}`} type="number" min={0} max={500} step={5} value={a.rate[b]} onChange={(e) => set("rate", b, e.target.value)} className="tabular w-16 rounded-md border border-line-strong bg-surface px-2 py-1 text-sm" />
+                      <input id={`${uid}-r-${b}`} type="number" min={0} max={500} step={5} value={a.rate[b]} onChange={(e) => set("rate", b, e.target.value)} className="tabular w-16 rounded-[3px] border border-line-strong bg-canvas px-2 py-1 font-mono text-sm text-ink focus:border-accent focus:outline-none" />
                     </td>
                     <td className="tabular px-2 py-2 text-right">{roundHalfEven(hours, 1).toFixed(1)}</td>
                     <td className="tabular py-2 pl-2 text-right">${roundHalfEven(hours * a.rate[b]).toLocaleString("en-US")}</td>
@@ -307,7 +297,7 @@ function CostModel({ cost }: { cost: FlakyResponse["cost"] }) {
             </tbody>
           </table>
         </div>
-        <p className="rounded-md border-l-2 border-amber-400 bg-amber-50/60 px-3 py-2 text-xs text-amber-950 dark:bg-amber-500/10 dark:text-amber-100" aria-live="polite">
+        <p className="rounded-[3px] border-l-2 border-accent bg-accent/[0.06] px-3 py-2 text-xs text-ink" aria-live="polite">
           {cost.caveat} {edited && <Pill tone="amber">edited locally, not saved</Pill>}
         </p>
       </div>

@@ -6,7 +6,7 @@ import { useKnowledge, useOverview, useRun } from "@/lib/hooks";
 import type { GateCheck, OutcomeView, RunResponse } from "@/lib/types";
 import { AttemptTimeline } from "../Attempts";
 import { EvidenceChip } from "../Evidence";
-import { buttonClass, cx, ErrorBlock, LoadingBlock, Pill, statusTone, VerdictBadge } from "../ui";
+import { buttonClass, cx, ErrorBlock, LoadingBlock, Pill, StatusChip, statusTone, VerdictBadge } from "../ui";
 
 function conflictTests(check: GateCheck, run: RunResponse): OutcomeView[] {
   const ids = new Set([...check.detail.matchAll(/(T-[A-Z]+-\d+) final=/g)].map((m) => m[1]));
@@ -38,20 +38,20 @@ export function SourceConflict({ runId, check }: { runId: string; check: GateChe
   const rcOf = (id: string) => overview.data?.release_candidates.find((r) => r.run_id === id);
 
   return (
-    <section
-      aria-labelledby="conflict-title"
-      className="overflow-hidden rounded-xl border-2 border-amber-400/70 bg-surface dark:border-amber-500/50"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-300/60 bg-amber-50 px-4 py-3 sm:px-5 dark:border-amber-500/30 dark:bg-amber-500/10">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-300">
-            Gate check · summary_conflict · rule {check.rule}
-          </div>
-          <h2 id="conflict-title" className="text-base font-semibold text-ink">
-            Source conflict: the CI summary disagrees with the test runner
-          </h2>
-        </div>
-        <EvidenceChip id={runId} />
+    <section aria-labelledby="conflict-title" className="overflow-hidden rounded-[4px] border border-accent/45 bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-accent/25 bg-accent/[0.06] px-4 py-2 sm:px-5">
+        <span className="label-mono text-accent">Gate check · summary_conflict · rule {check.rule}</span>
+        <span className="flex flex-wrap items-center gap-1.5">
+          <StatusChip tone="amber" dot>
+            hold · operator gate
+          </StatusChip>
+          <EvidenceChip id={runId} />
+        </span>
+      </div>
+      <div className="border-b border-line px-4 py-4 sm:px-5">
+        <h2 id="conflict-title" className="font-serif text-[24px] leading-tight tracking-[-0.02em] text-ink sm:text-[28px]">
+          Source conflict: the CI summary <em className="italic text-accent">disagrees</em> with the test runner
+        </h2>
       </div>
 
       {run.error && <ErrorBlock message={errorMessage(run.error)} onRetry={run.reload} />}
@@ -60,51 +60,55 @@ export function SourceConflict({ runId, check }: { runId: string; check: GateChe
       {run.data && (
         <div className="p-4 sm:p-5">
           <div className="grid items-stretch gap-3 lg:grid-cols-[1fr_auto_1.35fr]">
-            <div className="rounded-lg border border-line bg-sunken/60 p-4">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold text-ink">CI summary</span>
-                <Pill>advisory</Pill>
+            <div className="flex flex-col rounded-[4px] border border-line bg-canvas/50">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2">
+                <span className="label-mono text-ink">CI summary</span>
+                <StatusChip>advisory</StatusChip>
               </div>
-              {summary ? (
-                <>
-                  <dl className="grid grid-cols-2 gap-3">
-                    <div>
-                      <dt className="text-[11px] text-faint">Status (raw)</dt>
-                      <dd className="font-mono text-sm text-ink">&quot;{summary.status_raw}&quot;</dd>
+              <div className="flex-1 p-4">
+                {summary ? (
+                  <>
+                    <dl className="grid grid-cols-2 gap-4">
+                      <div>
+                        <dt className="label-mono text-[10px] text-faint">Status (raw)</dt>
+                        <dd className="mt-1 font-mono text-[15px] text-ink">&quot;{summary.status_raw}&quot;</dd>
+                      </div>
+                      <div>
+                        <dt className="label-mono text-[10px] text-faint">Normalised</dt>
+                        <dd className="mt-1">
+                          <Pill tone={statusTone(summary.status)} mono className="text-[13px]">
+                            {summary.status}
+                          </Pill>
+                        </dd>
+                      </div>
+                    </dl>
+                    <div className="mt-4">
+                      <div className="label-mono mb-1 text-[10px] text-faint">Event</div>
+                      <EvidenceChip id={summary.event_id} />
                     </div>
-                    <div>
-                      <dt className="text-[11px] text-faint">Normalised</dt>
-                      <dd>
-                        <Pill tone={statusTone(summary.status)} mono className="text-sm">
-                          {summary.status}
-                        </Pill>
-                      </dd>
-                    </div>
-                  </dl>
-                  <div className="mt-3">
-                    <div className="text-[11px] text-faint">Event</div>
-                    <EvidenceChip id={summary.event_id} />
-                  </div>
-                  <p className="mt-3 text-xs text-muted">One webhook for the whole run. It reports the pipeline, not each test&apos;s final attempt.</p>
-                </>
-              ) : (
-                <p className="text-sm text-muted">No CI summary event.</p>
-              )}
+                    <p className="mt-4 text-[13px] text-muted">One webhook for the whole run. It reports the pipeline, not each test&apos;s final attempt.</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted">No CI summary event.</p>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center justify-center" aria-hidden>
-              <span className="flex size-12 items-center justify-center rounded-full border-2 border-amber-400 bg-amber-50 text-2xl font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+            <div className="flex items-center justify-center gap-3 py-1 lg:flex-col lg:py-0" aria-hidden>
+              <span className="h-px w-10 bg-accent/40 lg:h-10 lg:w-px" />
+              <span className="flex size-11 items-center justify-center rounded-full border border-accent bg-accent/10 font-serif text-[26px] leading-none text-accent">
                 ≠
               </span>
+              <span className="h-px w-10 bg-accent/40 lg:h-10 lg:w-px" />
             </div>
             <span className="sr-only">does not match</span>
 
-            <div className="rounded-lg border-2 border-ink/80 p-4">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold text-ink">Test runner</span>
-                <Pill tone="violet">source of truth</Pill>
+            <div className="flex flex-col rounded-[4px] border border-accent/40 bg-canvas/50">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-accent/25 px-4 py-2">
+                <span className="label-mono text-ink">Test runner</span>
+                <StatusChip tone="amber">source of truth</StatusChip>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 p-4">
                 {tests.map((t) => (
                   <AttemptTimeline key={t.test_id} outcome={t} />
                 ))}
@@ -112,22 +116,23 @@ export function SourceConflict({ runId, check }: { runId: string; check: GateChe
             </div>
           </div>
 
-          <div className="mt-4 rounded-lg border border-line bg-sunken/60 p-3 text-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <Pill mono tone="violet">
-                {check.rule}
-              </Pill>
-              <span className="font-semibold text-ink">{r5?.title ?? "Source-of-truth precedence"}</span>
-            </div>
-            {r5?.rationale && <p className="mt-1 text-muted">{r5.rationale}</p>}
-            {r5?.effect && <p className="mt-1 text-ink">{r5.effect}</p>}
-          </div>
+          <figure className="mt-5 border-l-2 border-accent pl-4 sm:pl-5">
+            <figcaption className="label-mono flex flex-wrap items-center gap-2 text-faint">
+              <span className="text-accent">{check.rule}</span>
+              <span aria-hidden>·</span>
+              <span className="text-ink">{r5?.title ?? "Source-of-truth precedence"}</span>
+            </figcaption>
+            {r5?.rationale && (
+              <blockquote className="mt-2 font-serif text-[19px] italic leading-relaxed text-ink sm:text-[21px]">“{r5.rationale}”</blockquote>
+            )}
+            {r5?.effect && <p className="mt-2 max-w-3xl text-[13.5px] text-muted">{r5.effect}</p>}
+          </figure>
 
           {twin && (
-            <div className="mt-4">
+            <div className="mt-5 border-t border-line pt-5">
               {!showTwin ? (
-                <button type="button" className={buttonClass("secondary", "md")} onClick={() => setShowTwin(true)} aria-expanded={false}>
-                  Same rule, other run → <span className="font-mono text-xs">{rcOf(twin)?.id ?? twin}</span>
+                <button type="button" className={buttonClass("primary", "md")} onClick={() => setShowTwin(true)} aria-expanded={false}>
+                  Same rule, other run → <span className="normal-case tracking-normal">{rcOf(twin)?.id ?? twin}</span>
                 </button>
               ) : (
                 <TwinComparison
@@ -166,9 +171,9 @@ function TwinComparison({
   const ids = new Set(thisTests.map((t) => t.test_id));
 
   return (
-    <div className="rounded-xl border border-line" aria-live="polite">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2.5">
-        <h3 className="text-sm font-semibold text-ink">Same policy, same test, same CI summary — different runner evidence</h3>
+    <div className="rounded-[4px] border border-line" aria-live="polite">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-sunken/50 px-4 py-2.5">
+        <h3 className="font-serif text-[17px] leading-snug text-ink">Same policy, same test, same CI summary — different runner evidence</h3>
         <button type="button" className={buttonClass("ghost")} onClick={onHide} aria-expanded>
           Hide
         </button>
@@ -177,11 +182,7 @@ function TwinComparison({
       {twin.error && <ErrorBlock message={errorMessage(twin.error)} onRetry={twin.reload} />}
       {twin.data && (
         <div className="grid gap-px bg-line md:grid-cols-2">
-          <RunColumn
-            title={thisRc ?? thisRun.details.run.run_id}
-            run={thisRun}
-            tests={thisTests}
-          />
+          <RunColumn title={thisRc ?? thisRun.details.run.run_id} run={thisRun} tests={thisTests} />
           <RunColumn
             title={twinRc ?? twinId}
             run={twin.data}
@@ -211,22 +212,22 @@ function RunColumn({ title, run, tests }: { title: string; run: RunResponse; tes
     <div className="bg-surface p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="font-mono text-sm font-semibold text-ink">{title}</div>
+          <div className="font-serif text-[20px] leading-tight text-ink">{title}</div>
           <EvidenceChip id={run.details.run.run_id} />
         </div>
         <VerdictBadge verdict={g.verdict} />
       </div>
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted">
-        <span>CI summary</span>
+      <div className="mb-3 flex flex-wrap items-center gap-2 font-mono text-[11px] text-muted">
+        <span className="label-mono text-[10px] text-faint">CI summary</span>
         <Pill tone={statusTone(s?.status)} mono>
           {s?.status ?? "missing"}
         </Pill>
-        <span aria-hidden>·</span>
+        <span aria-hidden className="text-faint">·</span>
         <span>
-          rule <span className="font-mono font-semibold text-ink">{g.deciding_rule}</span>
+          rule <span className="text-ink">{g.deciding_rule}</span>
         </span>
-        <span aria-hidden>·</span>
-        <span className="font-mono">{g.policy_id}</span>
+        <span aria-hidden className="text-faint">·</span>
+        <span>{g.policy_id}</span>
       </div>
       <div className="space-y-3">
         {tests.map((t) => (
@@ -234,11 +235,11 @@ function RunColumn({ title, run, tests }: { title: string; run: RunResponse; tes
         ))}
       </div>
       {decisive && (
-        <p className={cx("mt-3 rounded-md bg-sunken px-3 py-2 text-xs text-ink")}>
-          <span className="font-mono">{decisive.condition}</span>: {decisive.detail}
+        <p className={cx("mt-3 rounded-[3px] border border-line bg-canvas/60 px-3 py-2 text-xs text-ink")}>
+          <span className="font-mono text-accent">{decisive.condition}</span>: {decisive.detail}
         </p>
       )}
-      <p className="mt-2 text-xs text-muted">{caption}</p>
+      <p className="mt-2 font-serif text-[15px] italic text-muted">{caption}</p>
     </div>
   );
 }

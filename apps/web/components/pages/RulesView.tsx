@@ -30,10 +30,10 @@ export function RulesView() {
           {k.rules.map((r) => (
             <li key={r.id} className="grid gap-2 px-4 py-4 sm:grid-cols-[4rem_1fr] sm:px-5">
               <div>
-                <span className="inline-flex rounded-md bg-ink px-2 py-1 font-mono text-sm font-bold text-canvas">{r.id}</span>
+                <span className="inline-flex rounded-[3px] border border-accent/60 px-2 py-1 font-mono text-[13px] text-accent">{r.id}</span>
               </div>
               <div className="min-w-0 space-y-1.5">
-                <h3 className="text-sm font-semibold text-ink">{r.title}</h3>
+                <h3 className="font-serif text-[18px] leading-snug text-ink">{r.title}</h3>
                 {r.rationale && (
                   <p className="text-sm text-muted">
                     <span className="mr-1 font-mono text-[11px] uppercase text-faint">Why</span>
@@ -49,8 +49,8 @@ export function RulesView() {
                 {r.levels && (
                   <dl className="mt-2 grid gap-2 sm:grid-cols-3">
                     {Object.entries(r.levels).map(([lvl, def]) => (
-                      <div key={lvl} className="rounded-md border border-line p-2">
-                        <dt className="font-mono text-xs font-semibold text-ink">{lvl}</dt>
+                      <div key={lvl} className="rounded-[3px] border border-line p-2">
+                        <dt className="font-mono text-xs text-accent">{lvl}</dt>
                         <dd className="text-xs text-muted">{def}</dd>
                       </div>
                     ))}
@@ -95,7 +95,7 @@ export function RulesView() {
               {k.quarantine.map((q) => {
                 const expired = q.expires < asOf;
                 return (
-                  <li key={q.test_id} className={cx("px-4 py-3 sm:px-5", expired && "bg-red-50/50 dark:bg-red-500/5")}>
+                  <li key={q.test_id} className={cx("px-4 py-3 sm:px-5", expired && "bg-block/[0.05]")}>
                     <div className="flex flex-wrap items-center gap-2">
                       <EvidenceChip id={q.test_id} />
                       {expired ? <Pill tone="red">expired {q.expires} — back in the gate</Pill> : <Pill tone="green">active until {q.expires}</Pill>}
@@ -116,7 +116,7 @@ export function RulesView() {
         <CardHeader id="tax-title" title="Failure taxonomy" eyebrow="Error class → category. INFRA and EXTERNAL_DEPENDENCY never count against a test (R1)" />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-sunken/60 text-left text-[11px] uppercase tracking-wider text-faint">
+            <thead className="label-mono border-b border-line bg-sunken/50 text-left text-[10.5px] text-faint">
               <tr>
                 <th scope="col" className="px-4 py-2 font-medium">Category</th>
                 <th scope="col" className="px-3 py-2 font-medium">Error classes</th>
@@ -126,13 +126,13 @@ export function RulesView() {
             <tbody className="divide-y divide-line">
               {Object.entries(k.taxonomy).map(([cat, v]) => (
                 <tr key={cat} className="align-top">
-                  <th scope="row" className="whitespace-nowrap px-4 py-3 text-left font-mono text-xs font-semibold text-ink">
+                  <th scope="row" className="whitespace-nowrap px-4 py-3 text-left font-mono text-xs text-accent">
                     {cat}
                   </th>
                   <td className="px-3 py-3">
                     <div className="flex flex-wrap gap-1">
                       {v.classes.map((c) => (
-                        <span key={c} className="rounded bg-sunken px-1.5 py-px font-mono text-[11px] text-ink">
+                        <span key={c} className="rounded-[3px] bg-sunken px-1.5 py-px font-mono text-[11px] text-ink">
                           {c}
                         </span>
                       ))}
@@ -151,7 +151,7 @@ export function RulesView() {
           <CardHeader id="eff-title" title="Effort assumptions" eyebrow="Assumptions, not measurements — a pilot replaces them" />
           <div className="overflow-x-auto p-4 sm:px-5">
             <table className="w-full max-w-lg text-sm">
-              <thead className="text-left text-[11px] uppercase tracking-wider text-faint">
+              <thead className="text-left label-mono text-[10.5px] text-faint">
                 <tr>
                   <th scope="col" className="py-1.5 font-medium">Assumption</th>
                   <th scope="col" className="py-1.5 text-right font-medium">Low</th>

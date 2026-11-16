@@ -8,7 +8,8 @@ Built as a proof of concept for a fictional prospect, *Kestrel Commerce*, on **e
 
 - Live demo: https://testops.dangtrinh.dev (API: https://testops-agent-api.vercel.app/api/health)
 - Prospect brief (one page): [`docs/prospect-brief.md`](docs/prospect-brief.md) · printable [`docs/prospect-brief.html`](docs/prospect-brief.html)
-- Architecture and design decisions: [`docs/technical-deep-dive.md`](docs/technical-deep-dive.md)
+- Architecture and design decisions: [`docs/technical-deep-dive.md`](docs/technical-deep-dive.md); in the console: [`/architecture`](https://testops.dangtrinh.dev/architecture) (system diagram, data lineage, agent loop, modes, safety, MVP → production)
+- Pilot proposal in the console: [`/pilot`](https://testops.dangtrinh.dev/pilot) (four-week plan, success criteria, ROI calculator, cost drivers, risks, exit criteria)
 
 ## What it answers
 
@@ -24,7 +25,7 @@ Free-form questions go through the same tools and validator.
 
 ```mermaid
 flowchart LR
-    UI["Next.js console<br/>(Vercel)"] -->|/api/* route handler| API["FastAPI<br/>(Vercel Python, sin1)"]
+    UI["Next.js console<br/>(Vercel)"] -->|"/api/* route handler<br/>(streams SSE through)"| API["FastAPI<br/>(Vercel Python, sin1)"]
     API --> G{{"LangGraph<br/>agent → tools → compose → validate → revise once"}}
     G --> T["8 bounded read-only tools"]
     T --> D["Deterministic domain<br/>ETL · release gate · flake levels · cost"]
@@ -36,6 +37,7 @@ flowchart LR
 - **Raw evidence is immutable.** Three sources (CI server, test runner, artifact store) arrive in different formats; the ETL keeps the raw value next to the normalised one and records data-quality findings.
 - **Verdicts are not model output.** `evaluate_release_gate` is a pure function over the rule file; the model can only request and explain it.
 - **Every answer is validated** before it is shown: cited ids must exist and have been retrieved in this request, numbers must appear in tool output, and any verdict in the text (including plain-English "can ship") must equal the policy result for the run it names. One revision is allowed; remaining problems are shown, not hidden.
+- **The run is visible while it happens.** `POST /api/ask/stream` returns server-sent events (`start`, `plan`, `tool`, `compose`, `validate`, `notice`, `final`, or `error`) with a `ping` every 5 s while the model thinks. In live mode these are real LangGraph node updates; the console's *Agent run* panel lights the four nodes (Agent, Tools, Compose, Validate) and logs each step with its elapsed time. Replay and offline emit their trace at once and say so. If the stream drops without an HTTP error, the console fetches the same answer from `POST /api/ask`.
 - **Three honest modes**, always labelled in the UI: `live` (real model chooses tools), `replay` (a recorded live trace for scenarios A, B and C, evidence re-checked against current data) and `offline` (keyword planner + templates, no model).
 
 ## Data and the dirty-data catalogue
@@ -58,7 +60,7 @@ flowchart LR
 ```text
 .
 ├── .github/workflows/ci.yml     lint, tests (with Postgres), offline evals, web build
-├── apps/web/                    Next.js 16 console (TypeScript, Tailwind v4)
+├── apps/web/                    Next.js 16 console (React 19, TypeScript, Tailwind v4; pages /, /architecture, /pilot, /flaky, /data-quality, /evals, /rules)
 ├── services/agent-api/
 │   ├── app/
 │   │   ├── etl.py               raw events -> normalised records + data-quality findings
@@ -86,7 +88,7 @@ git clone https://github.com/dangtrinh3006/testops-intelligence-agent.git
 cd testops-intelligence-agent/services/agent-api
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt pytest uvicorn
-python -m pytest -q                                     # 44 passed, 2 skipped (DB tests need TEST_DATABASE_URL)
+python -m pytest -q                                     # 46 passed, 2 skipped (DB tests need TEST_DATABASE_URL)
 python -m uvicorn app.main:app --port 8000              # fixtures + offline mode, no keys needed
 ```
 
@@ -94,7 +96,10 @@ python -m uvicorn app.main:app --port 8000              # fixtures + offline mod
 cd apps/web
 npm install
 npm run dev                                             # http://localhost:3000, proxies /api to :8000
+npm run build && npx next start -p 3000                 # production build, same proxy; use this for a demo
 ```
+
+Web stack: Next.js 16, React 19, Tailwind v4. Fonts are self-hosted through `@fontsource` (Playfair Display headings, IBM Plex Sans body, IBM Plex Mono labels), not `next/font/google`, so a build does not depend on reaching Google Fonts.
 
 Live model mode: put `LLM_API_KEY` (Gemini API key, or any OpenAI-compatible provider with `LLM_BASE_URL`) in `services/agent-api/.env.local` (template: `.env.example`) and export it before starting uvicorn. Without it the API answers in offline mode and says so.
 
@@ -104,7 +109,7 @@ Postgres (optional, same results as fixtures):
 docker run -d --name testops-pg -e POSTGRES_PASSWORD=localdev -p 5440:5432 postgres:17-alpine
 export DATABASE_URL=postgresql://postgres:localdev@localhost:5440/postgres READONLY_PASSWORD=local-reader
 python -m app.seed                                      # idempotent; creates role testops_reader (SELECT only)
-TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 46 passed: adds the DB parity + read-only role tests
+TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 48 passed: adds the DB parity + read-only role tests
 ```
 
 ## Environment variables (API)
@@ -119,7 +124,7 @@ TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 46 passed: adds the DB
 | `DATABASE_URL` + `READONLY_PASSWORD` | seed only | Privileged connection for `python -m app.seed` |
 | `RATE_LIMIT_PER_MINUTE` / `LIVE_DAILY_CAP` | no | Abuse protection on the public demo (6/min/IP, 150 live answers/day), in memory per serverless instance |
 
-Web: `AGENT_API_URL` (read at runtime by the route handler `apps/web/app/api/[...path]/route.ts` that proxies `/api/*`, 120 s max; default `http://localhost:8000`).
+Web: `AGENT_API_URL` (read at runtime by the route handler `apps/web/app/api/[...path]/route.ts` that proxies `/api/*`, 120 s max, and passes `text/event-stream` bodies through unbuffered; default `http://localhost:8000`).
 
 ## Checks
 
@@ -132,7 +137,7 @@ Web: `AGENT_API_URL` (read at runtime by the route handler `apps/web/app/api/[..
 | Web | `cd apps/web && npm run typecheck && npm run lint && npm run build` |
 | Deployed smoke test | `python scripts/smoke.py https://testops.dangtrinh.dev` (add `--live` for one live answer) |
 
-CI: `.github/workflows/ci.yml` runs on every push to `main` and on pull requests: ruff, pytest with a Postgres service (all 46 tests, including DB parity), the offline eval report; web typecheck, lint and build.
+CI: `.github/workflows/ci.yml` runs on every push to `main` and on pull requests: ruff, pytest with a Postgres service (all 48 tests, including DB parity), the offline eval report; web typecheck, lint and build.
 
 Agent evals: 10 cases (golden, adversarial, robustness). History in `services/agent-api/data/evals/HISTORY.md`: live run 1 scored 7/10 (2 validator false positives, 1 real prompt gap), run 2 10/10 after fixes (median 14.0 s). After the red-team review tightened the validator, three single runs scored 8/10, 9/10 and 8/10 with different cases failing: agent nondeterminism. The harness now takes `--repeat N` and classifies each case stable, flaky or failing, the same way the product classifies tests. The 3× stability run (`data/evals/latest.json`, `gemini-3.5-flash-lite`): 7/10 cases passed every run, 26/30 runs passed (run pass rate 0.867), 7 stable, 3 flaky, 0 failing, median 13.7 s; the policy verdict was correct in all 30 runs.
 
@@ -143,6 +148,8 @@ Agent evals: 10 cases (golden, adversarial, robustness). History in `services/ag
 - Live mode uses the Gemini free tier. Measured during development: 8.0 s end-to-end through the public site (scenario A), live eval medians 9.4–14.0 s per case, single cases up to about 25 s; occasional rate limits, mitigated by a fallback model, then replay/offline. Not an SLA.
 - The per-IP and daily limits are in memory per serverless instance and reset on a cold start; the hard spending cap today is Google's free-tier quota. In a pilot the cap sits at a gateway or a shared counter.
 - Cost figures are illustrative assumptions, never measured company data.
+- The `/pilot` ROI calculator runs in the browser on placeholder inputs the viewer replaces; it is a formula, not a measurement.
+- The public domain `*.dangtrinh.dev` is blocked by some corporate web gateways (observed on the author's employer network). Use another network, or run locally as above.
 
 ## Author
 

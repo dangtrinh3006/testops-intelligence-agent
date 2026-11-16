@@ -35,19 +35,19 @@ export function DataQualityView() {
     <div className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="grid grid-cols-3 gap-3 lg:col-span-7">
-          <div className="rounded-xl border border-line bg-surface p-3">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-faint">Raw events</div>
-            <div className="tabular mt-1 text-2xl font-semibold text-ink">{data.raw_events.toLocaleString("en-US")}</div>
+          <div className="rounded-[4px] border border-line bg-surface p-3">
+            <div className="label-mono text-[10.5px] text-faint">Raw events</div>
+            <div className="tabular mt-2 font-serif text-[30px] leading-none tracking-[-0.02em] text-ink">{data.raw_events.toLocaleString("en-US")}</div>
             <div className="text-[11px] text-muted">as ingested</div>
           </div>
-          <div className="rounded-xl border border-line bg-surface p-3">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-faint">Unique events</div>
-            <div className="tabular mt-1 text-2xl font-semibold text-ink">{data.unique_events.toLocaleString("en-US")}</div>
+          <div className="rounded-[4px] border border-line bg-surface p-3">
+            <div className="label-mono text-[10.5px] text-faint">Unique events</div>
+            <div className="tabular mt-2 font-serif text-[30px] leading-none tracking-[-0.02em] text-ink">{data.unique_events.toLocaleString("en-US")}</div>
             <div className="text-[11px] text-muted">used for analysis</div>
           </div>
-          <div className="rounded-xl border border-line bg-surface p-3">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-faint">Findings</div>
-            <div className="tabular mt-1 text-2xl font-semibold text-ink">{data.findings.length}</div>
+          <div className="rounded-[4px] border border-line bg-surface p-3">
+            <div className="label-mono text-[10.5px] text-faint">Findings</div>
+            <div className="tabular mt-2 font-serif text-[30px] leading-none tracking-[-0.02em] text-ink">{data.findings.length}</div>
             <div className="text-[11px] text-muted">{dupes} duplicate{dupes === 1 ? "" : "s"} collapsed</div>
           </div>
         </div>
@@ -56,7 +56,7 @@ export function DataQualityView() {
           <ol className="space-y-2 p-4 sm:px-5">
             {data.source_of_truth.map((s, i) => (
               <li key={s} className="flex items-start gap-3 text-sm">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-xs font-bold text-canvas">{i + 1}</span>
+                <span className="label-mono flex size-6 shrink-0 items-center justify-center text-accent">{String(i + 1).padStart(2, "0")}</span>
                 <span className="pt-0.5 text-ink">{s}</span>
               </li>
             ))}
@@ -75,7 +75,7 @@ export function DataQualityView() {
           </CardHeader>
           <ul className="divide-y divide-line">
             {fs.map((f) => (
-              <li key={f.id} className="grid gap-2 px-4 py-3 sm:grid-cols-[9rem_1fr] sm:px-5">
+              <li key={f.id} className="grid gap-2 px-4 py-3.5 transition-colors hover:bg-sunken/40 sm:grid-cols-[9rem_1fr] sm:px-5">
                 <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-start">
                   <EvidenceChip id={f.id} />
                   <Pill tone={severityTone(f.severity)}>{f.severity}</Pill>
@@ -91,7 +91,7 @@ export function DataQualityView() {
                         isRecordId(id) ? (
                           <EvidenceChip key={id} id={id} />
                         ) : (
-                          <span key={id} className="rounded bg-sunken px-1.5 py-px font-mono text-[11px] text-muted" title="Not addressable by the record API">
+                          <span key={id} className="rounded-[3px] border border-line bg-sunken px-1.5 py-px font-mono text-[11px] text-muted" title="Not addressable by the record API">
                             {id}
                           </span>
                         ),

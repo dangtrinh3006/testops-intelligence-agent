@@ -6,14 +6,15 @@ import { useInspector } from "./inspector-context";
 import { cx } from "./ui";
 
 const KIND_STYLE: Record<string, string> = {
-  run: "text-indigo-800 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-500/15 ring-indigo-600/20 dark:ring-indigo-400/30",
-  attempt: "text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-500/20 ring-slate-500/25 dark:ring-slate-400/30",
-  "CI summary": "text-sky-900 dark:text-sky-100 bg-sky-50 dark:bg-sky-500/15 ring-sky-600/20 dark:ring-sky-400/30",
-  log: "text-stone-800 dark:text-stone-100 bg-stone-100 dark:bg-stone-500/20 ring-stone-500/25 dark:ring-stone-400/30",
-  finding: "text-amber-900 dark:text-amber-100 bg-amber-50 dark:bg-amber-500/15 ring-amber-600/25 dark:ring-amber-400/30",
-  test: "text-teal-900 dark:text-teal-100 bg-teal-50 dark:bg-teal-500/15 ring-teal-600/20 dark:ring-teal-400/30",
-  policy: "text-violet-900 dark:text-violet-100 bg-violet-50 dark:bg-violet-500/15 ring-violet-600/20 dark:ring-violet-400/30",
-  "release candidate": "text-indigo-900 dark:text-indigo-100 bg-indigo-50 dark:bg-indigo-500/15 ring-indigo-600/20 dark:ring-indigo-400/30",
+  run: "text-accent border-accent/30 bg-accent/[0.06]",
+  "release candidate": "text-accent border-accent/30 bg-accent/[0.06]",
+  attempt: "text-ink border-line-strong bg-sunken",
+  "raw event": "text-ink border-line-strong bg-sunken",
+  "CI summary": "text-warn border-warn/30 bg-warn/[0.06]",
+  log: "text-muted border-line-strong bg-sunken",
+  finding: "text-block border-block/30 bg-block/[0.06]",
+  test: "text-ship border-ship/30 bg-ship/[0.06]",
+  policy: "text-violet border-violet/30 bg-violet/[0.06]",
 };
 
 export function EvidenceChip({ id, missing, label }: { id: string; missing?: boolean; label?: string }) {
@@ -26,8 +27,8 @@ export function EvidenceChip({ id, missing, label }: { id: string; missing?: boo
       title={missing ? `${id} — not found in current data` : `Inspect ${kind} ${id}`}
       aria-label={`Inspect ${kind} ${id}${missing ? " (missing)" : ""}`}
       className={cx(
-        "mx-0.5 inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-px align-baseline font-mono text-[0.78rem] leading-5 ring-1 ring-inset transition hover:brightness-95 hover:ring-2 dark:hover:brightness-125",
-        missing ? "bg-red-50 text-red-800 line-through ring-red-500/40 dark:bg-red-500/10 dark:text-red-200" : (KIND_STYLE[kind] ?? KIND_STYLE.attempt),
+        "mx-0.5 inline-flex max-w-full items-center gap-1 rounded-[3px] border px-1.5 py-px align-baseline font-mono text-[0.76rem] leading-5 transition-colors hover:border-accent hover:bg-accent/10 hover:text-accent-hover",
+        missing ? "border-block/45 bg-block/10 text-block line-through" : (KIND_STYLE[kind] ?? KIND_STYLE.attempt),
       )}
     >
       <span className="break-all text-left">{label ?? id}</span>

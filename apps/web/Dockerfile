@@ -20,7 +20,9 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
     AGENT_API_URL=http://api:8000
-RUN addgroup -S -g 10001 app && adduser -S -u 10001 -G app app
+# npm is not needed by the standalone server and ships its own vulnerable dependency tree.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
+ && addgroup -S -g 10001 app && adduser -S -u 10001 -G app app
 COPY --from=build --chown=app:app /app/.next/standalone ./
 COPY --from=build --chown=app:app /app/.next/static ./.next/static
 USER 10001

@@ -125,7 +125,7 @@
       <tr><td>“Where do the ROI numbers come from?”</td><td>From the pilot’s week-1 baseline. Today there is a formula and a sensitivity table, not a promised figure.</td></tr>
       <tr><td>“We cannot send CI logs to a cloud model.”</td><td>It works with any OpenAI-compatible endpoint. Logs are handled as untrusted data. The pilot runs in the customer’s account.</td></tr>
       <tr><td>“Our CI already retries.”</td><td>Retries do not separate infrastructure failures from product failures. Every failure here carries a defect type: Product Bug, Automation Bug, System Issue or To Investigate.</td></tr>
-      <tr><td>“How do we know the agent itself is reliable?”</td><td>Golden, adversarial and robustness evals run repeatedly and are reported as pass<sup>k</sup>. A run that falls back to the offline planner is not counted as a model pass.</td></tr>
+      <tr><td>“How do we know the agent itself is reliable?”</td><td>Golden, adversarial and robustness evals run repeatedly and are reported as pass rates across repeated runs. A run that falls back to the offline planner is not counted as a model pass.</td></tr>
     </table>
 
     <h2><span class="n">07</span>Proposed pilot · 4 weeks, illustrative</h2>

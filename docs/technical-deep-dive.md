@@ -175,7 +175,7 @@ Live history (`data/evals/HISTORY.md`): run 1 scored 7/10 (2 validator false pos
 
 ### What review found
 
-Before submission an internal adversarial (red-team) review of code and docs found, and we fixed: an offline answer about the wrong run (`run-inv-main-0157` for a question about `run-inv-main-0144`); validator holes (lowercase "can ship", a verdict borrowed from another run, 100 whitelisted as a trivial number); R2 wording in the rule file that did not match the code; the summary-conflict scope; flake-level ordering; the cost label (25 is triage work, not flakiness); a crash on an unparseable queue time; the API `.env.example` not tracked. Each code fix has a test in `tests/test_redteam_regressions.py`.
+Before release an internal adversarial (red-team) review of code and docs found, and we fixed: an offline answer about the wrong run (`run-inv-main-0157` for a question about `run-inv-main-0144`); validator holes (lowercase "can ship", a verdict borrowed from another run, 100 whitelisted as a trivial number); R2 wording in the rule file that did not match the code; the summary-conflict scope; flake-level ordering; the cost label (25 is triage work, not flakiness); a crash on an unparseable queue time; the API `.env.example` not tracked. Each code fix has a test in `tests/test_redteam_regressions.py`.
 
 ## 12. Scaling path to real CI integrations
 

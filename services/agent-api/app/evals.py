@@ -98,6 +98,10 @@ def _one(ds, case: Case, mode: str) -> tuple[dict, object]:
     t0 = time.perf_counter()
     resp = ask(ds, case.question, mode)
     checks = _check(case, resp)
+    if mode == "live":
+        # A live run that degraded to offline proves nothing about the model: it must not count as a pass.
+        checks.append({"name": "answered_by_live_model", "passed": resp.mode == "live",
+                       "detail": f"{resp.mode} {resp.model or ''}".strip() + (f" ({resp.notice[:80]})" if resp.mode != "live" and resp.notice else "")})
     failed_validation = [c for c in resp.validation.checks if not c["passed"]]
     return {
         "passed": all(c["passed"] for c in checks), "checks": checks,
@@ -112,7 +116,7 @@ def _one(ds, case: Case, mode: str) -> tuple[dict, object]:
 def run(mode: str = "offline", only: list[str] | None = None, pause_s: float = 0.0, record_replays: bool = False, repeat: int = 1) -> dict:
     """Runs every case `repeat` times. An agent case is judged like a test: stable, flaky or failing."""
     ds, source = dataset()
-    results, models, lat = [], set(), []
+    results, models, lat, answered_by = [], set(), [], {}
     first = True
     for case in (c for c in CASES if not only or c.id in only):
         runs = []
@@ -124,6 +128,8 @@ def run(mode: str = "offline", only: list[str] | None = None, pause_s: float = 0
             runs.append(r)
             if resp.model:
                 models.add(resp.model)
+            who = resp.model or resp.mode
+            answered_by[who] = answered_by.get(who, 0) + 1
             lat.append(resp.latency_ms)
             if record_replays and case.scenario and resp.mode == "live" and r["passed"]:
                 REPLAY_DIR.mkdir(parents=True, exist_ok=True)
@@ -134,7 +140,9 @@ def run(mode: str = "offline", only: list[str] | None = None, pause_s: float = 0
         results.append({"id": case.id, "suite": case.suite, "intent": case.intent, "question": case.question,
                         "expected": {"verdict": case.verdict, "must_cite_any": case.must_cite_any},
                         "passed": n_pass == len(runs), "runs": len(runs), "runs_passed": n_pass, "stability": stability,
-                        "actual": shown["actual"], "checks": shown["checks"], "elapsed_ms": shown["elapsed_ms"]})
+                        "actual": shown["actual"], "checks": shown["checks"], "elapsed_ms": shown["elapsed_ms"],
+                        "runs_detail": [{"passed": r["passed"], "mode": r["actual"]["mode"], "model": r["actual"]["model"],
+                                         "latency_ms": r["actual"]["latency_ms"]} for r in runs]})
     suites = {}
     for r in results:
         s = suites.setdefault(r["suite"], {"name": r["suite"], "passed": 0, "total": 0, "cases": []})
@@ -149,10 +157,11 @@ def run(mode: str = "offline", only: list[str] | None = None, pause_s: float = 0
                     "run_pass_rate": round(sum(r["runs_passed"] for r in results) / total_runs, 3) if total_runs else None,
                     "stable": sum(r["stability"] == "stable" for r in results), "flaky": sum(r["stability"] == "flaky" for r in results),
                     "failing": sum(r["stability"] == "failing" for r in results),
-                    "median_latency_ms": sorted(lat)[len(lat) // 2] if lat else None},
+                    "median_latency_ms": sorted(lat)[len(lat) // 2] if lat else None, "answered_by": answered_by},
         "suites": list(suites.values()),
         "method": ("Each case asserts policy verdict, key evidence cited, required tool use, forbidden claims, and the grounding validator. "
-                   "With repeat > 1 a case is stable (all runs pass), flaky (some) or failing (none): agent nondeterminism is measured, not hidden."),
+                   "With repeat > 1 a case is stable (all runs pass), flaky (some) or failing (none): agent nondeterminism is measured, not hidden. "
+                   "In live mode a run answered by the offline fallback fails `answered_by_live_model`; `answered_by` counts who answered each run."),
     }
     return report
 
@@ -164,10 +173,11 @@ if __name__ == "__main__":
     p.add_argument("--pause", type=float, default=0.0)
     p.add_argument("--replays", action="store_true")
     p.add_argument("--repeat", type=int, default=1)
+    p.add_argument("--out", help="report file name under data/evals (default latest.json live, offline.json offline)")
     a = p.parse_args()
     rep = run("live" if a.live else "offline", a.only, a.pause, a.replays, a.repeat)
     EVAL_DIR.mkdir(parents=True, exist_ok=True)
-    name = "latest.json" if a.live else "offline.json"
+    name = a.out or ("latest.json" if a.live else "offline.json")
     (EVAL_DIR / name).write_text(json.dumps(rep, indent=2), encoding="utf-8")
     print(json.dumps(rep["summary"]), "->", EVAL_DIR / name)
     for s in rep["suites"]:

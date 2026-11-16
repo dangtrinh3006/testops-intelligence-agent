@@ -1,6 +1,6 @@
 # Business case — pilot proposal
 
-Minutes 45–55 of the meeting. Everything here is a proposed commercial option for a fictional prospect, not an AITOMATIC offering. Dollar figures are illustrative and say so. On screen: [`/pilot`](https://testops.dangtrinh.dev/pilot) (timeline, success criteria, ROI calculator, risks, exit criteria).
+A proposed pilot for a fictional prospect. Dollar figures are illustrative and say so. On screen: [`/pilot`](https://testops.dangtrinh.dev/pilot) (timeline, success criteria, ROI calculator, risks, exit criteria).
 
 ## 1. Positioning
 
@@ -40,7 +40,7 @@ Exit: if the acceptance rate is under 50% at the end of W3 with the rule file al
 | Security review | read-only role, no model-written SQL, logs as untrusted data, endpoint choice | start in W1, not W4; the architecture doc is written for the reviewer |
 | Rule maintenance | the QA lead's time editing YAML weekly in the pilot | the file is the customer's; no vendor needed to change a rule |
 
-I do not quote a dollar price in this document. In the meeting, the honest answer is: integration engineering is the largest and least certain line; the others are small and bounded. A fixed-fee W1 (baseline plus data-quality report) with a go/no-go before W2 is the lowest-risk shape.
+This document quotes no dollar price. Integration engineering is the largest and least certain line; the others are small and bounded. A fixed-fee W1 (baseline plus data-quality report) with a go/no-go before W2 is the lowest-risk shape.
 
 ## 5. ROI: a formula, not a number
 
@@ -75,7 +75,7 @@ What the ROI line does not capture and the pilot should log anyway: releases hel
 | Integration takes longer than planned | ETL and schema exist; one source, one service | fixed-fee W1 with go/no-go |
 | Adoption: engineers ignore it | answers cite ids engineers can open; "cannot verify" instead of guesses | shadow mode inside the existing failed-run flow, one-click accept |
 
-## 7. Objection handling (top 10)
+## 7. Frequent objections
 
 1. **It will hallucinate a root cause.** It can be wrong in the explanation; it cannot be wrong in the verdict, because the verdict is a tested function. The validator strips unknown ids and ungrounded numbers. Engineers accept or override.
 2. **Where do your ROI numbers come from?** From your week-1 baseline. Today I have a formula and a sensitivity table. I will not give you a dollar figure I did not measure.
@@ -88,8 +88,8 @@ What the ROI line does not capture and the pilot should log anyway: releases hel
 9. **What does the pilot cost?** The largest line is integration engineering against your CI API; the rest is bounded and small. Fixed-fee week 1 with a go/no-go is the lowest-risk shape.
 10. **What if it fails?** You stop after week 3. You keep a measured triage baseline, a data-quality report on your CI feeds, and the rule file. Week 1 is useful even if nothing else happens.
 
-## 8. The close and next step
+## 8. Next step
 
-"Week one pays for itself even if you stop: a measured baseline and a data-quality report on your CI feeds. The rule file your leads write stays yours. The risk boundary is fixed: read-only, one service, a human on every item, a go/no-go after week one."
+Week one pays for itself even if the pilot stops: a measured baseline and a data-quality report on the CI feeds. The rule file the leads write stays with the customer. The risk boundary is fixed: read-only, one service, a human on every item, a go/no-go after week one.
 
-Next step to propose: a 45-minute scoping call with the QA Platform lead to pick the service and the CI source, confirm read-only token scope, and agree the baseline method; then a written week-1 statement of work with the five success criteria above and their measurement method.
+Proposed next step: a 45-minute scoping call with the QA Platform lead to pick the service and the CI source, confirm read-only token scope, and agree the baseline method; then a written week-1 statement of work with the five success criteria above and their measurement method.

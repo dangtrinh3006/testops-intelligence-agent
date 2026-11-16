@@ -13,7 +13,7 @@ from app.schemas import AskResponse, Claim, EvidenceRef, GateView, ToolCall, Val
 from app.store import DATA_DIR
 from app.tools import ToolError, run_tool
 
-from .llm import model_config
+from .llm import candidates, model_config
 from .validator import validate
 
 REPLAY_DIR = DATA_DIR.parent / "replays"
@@ -208,12 +208,10 @@ def ask_stream(ds: Dataset, question: str, mode: str = "live", scenario: str | N
         yield "start", {"request_id": rid, "mode": "live", "model": cfg.model, "streaming": True}
         from .graph import stream_live
         last_err = None
-        for model in [cfg.model, cfg.fallback_model]:
-            if not model:
-                continue
+        for c, model in candidates(cfg):
             try:
                 st = None
-                for ev, data in stream_live(cfg, ds, question, model):
+                for ev, data in stream_live(c, ds, question, model):
                     if ev == "done":
                         st = data
                     else:
@@ -271,11 +269,9 @@ def ask(ds: Dataset, question: str, mode: str = "live", scenario: str | None = N
         from .graph import run_live
 
         last_err = None
-        for model in [cfg.model, cfg.fallback_model]:
-            if not model:
-                continue
+        for c, model in candidates(cfg):
             try:
-                st = run_live(cfg, ds, question, model)
+                st = run_live(c, ds, question, model)
                 return _response(rid, "live", model, question, st["draft"], st.get("trace", []), st.get("results", []),
                                  st.get("gates", {}), st["validation"], st.get("revisions", 0), t0, ds,
                                  None if model == cfg.model else f"Primary model failed ({last_err}); answered by fallback {model}.")

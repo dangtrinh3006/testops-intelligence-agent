@@ -1,6 +1,6 @@
 # TestOps Intelligence Agent — Prospect Brief
 
-Trinh Nguyen (Martin), AITOMATIC Round 3, 17 Nov 2026. Proof of concept on synthetic data. Repo: https://github.com/dangtrinh3006/testops-intelligence-agent · Demo: https://testops.dangtrinh.dev
+Trinh Nguyen, 17 Nov 2026. Proof of concept on synthetic data. Repo: https://github.com/dangtrinh3006/testops-intelligence-agent · Demo: https://testops.dangtrinh.dev
 
 ## Prospect
 
@@ -25,8 +25,9 @@ Three sources describe each run and disagree: a CI summary webhook, runner attem
 1. *It will hallucinate a root cause or approve a bad release.* Verdicts come only from a tested policy function; a validator rejects unknown ids, ungrounded numbers and stray verdicts.
 2. *Where do the ROI numbers come from?* From the pilot's week-1 baseline. Today: a formula and a sensitivity table.
 3. *We cannot send CI logs to a cloud model.* Any OpenAI-compatible endpoint; logs are untrusted data; the pilot runs in the customer's account.
-4. *Our CI already retries.* It does not separate infrastructure from product failure, or expire a quarantine.
-5. *Why not a dashboard?* The value is a cited answer to an arbitrary question, plus a rule file that records your leads' judgment.
+4. *Our CI already retries.* Retries do not separate infrastructure from product failure, or expire a quarantine. Every failure here carries a defect type: Product Bug, Automation Bug, System Issue or To Investigate.
+5. *How do we know the agent itself is reliable?* Golden, adversarial and robustness evals run repeatedly and are reported as pass^k; a run that falls back to the offline planner is not counted as a model pass.
+6. *Why not a dashboard?* The value is a cited answer to an arbitrary question, plus a rule file that records your leads' judgment.
 
 ## Proposed pilot (4 weeks, illustrative)
 

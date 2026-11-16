@@ -15,7 +15,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .agent import graph as _graph  # noqa: F401 - import LangGraph at cold start, not inside the first request
-from .agent.llm import model_config
+from .agent.llm import candidates, model_config
 from .agent.service import PRESETS, ask, ask_stream
 from .domain.knowledge import knowledge
 from .schemas import AskRequest, AskResponse
@@ -82,7 +82,7 @@ def health():
     except DataUnavailable as e:
         data = {"status": "unavailable", "message": str(e)}
     return {"status": "ok" if data["status"] == "ok" else "degraded", "data": data,
-            "model": {"configured": cfg is not None, "model": cfg.model if cfg else None, "fallback": cfg.fallback_model if cfg else None},
+            "model": {"configured": cfg is not None, "model": cfg.model if cfg else None, "fallback": ", ".join(m for _, m in candidates(cfg)[1:]) or None if cfg else None},
             "rules_version": knowledge()["version"], "replays": sorted(p.stem for p in (DATA_DIR.parent / "replays").glob("*.json"))}
 
 

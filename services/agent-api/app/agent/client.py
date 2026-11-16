@@ -22,6 +22,8 @@ class ModelError(RuntimeError):
 
 def chat(cfg: ModelConfig, model: str, messages: list[dict], tools: list[dict] | None = None,
          tool_choice: str | dict | None = None, max_tokens: int = 2000) -> dict:
+    # Reasoning text returned by some providers (gpt-oss on Groq) is not accepted back as input.
+    messages = [{k: v for k, v in m.items() if k != "reasoning"} for m in messages]
     body: dict = {"model": model, "messages": messages, "temperature": 0, "max_tokens": max_tokens}
     if tools:
         body["tools"] = tools

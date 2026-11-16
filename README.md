@@ -7,9 +7,9 @@ Built as a proof of concept for a fictional prospect, *Kestrel Commerce*, on **e
 > **Rules decide, the model explains, and every claim links to a record.**
 
 - Live demo: https://testops.dangtrinh.dev (API: https://testops-agent-api.vercel.app/api/health)
-- Prospect brief (one page): [`docs/prospect-brief.md`](docs/prospect-brief.md) · printable [`docs/prospect-brief.html`](docs/prospect-brief.html)
+- Prospect brief (one page): [PDF](docs/prospect-brief.pdf) · [Markdown](docs/prospect-brief.md) · print source [`docs/prospect-brief.html`](docs/prospect-brief.html) (rendered with WeasyPrint)
 - Architecture and design decisions: [`docs/technical-deep-dive.md`](docs/technical-deep-dive.md); in the console: [`/architecture`](https://testops.dangtrinh.dev/architecture) (system diagram, data lineage, agent loop, modes, safety, MVP → production)
-- Pilot proposal in the console: [`/pilot`](https://testops.dangtrinh.dev/pilot) (four-week plan, success criteria, ROI calculator, cost drivers, risks, exit criteria)
+- Pilot proposal: [`docs/business-case.md`](docs/business-case.md); in the console: [`/pilot`](https://testops.dangtrinh.dev/pilot) (four-week plan, success criteria, ROI calculator, cost drivers, risks, exit criteria)
 
 ## What it answers
 
@@ -76,7 +76,7 @@ flowchart LR
 │   ├── api/index.py             Vercel entrypoint
 │   └── tests/
 ├── scripts/smoke.py             post-deploy smoke test
-└── docs/                        brief, deep dive, demo script, business case, runbook
+└── docs/                        prospect brief, technical deep dive, pilot business case
 ```
 
 ## Run locally
@@ -119,6 +119,8 @@ TEST_DATABASE_URL=$DATABASE_URL python -m pytest -q     # 48 passed: adds the DB
 | `LLM_API_KEY` | for live mode | Model provider key (server-side only) |
 | `LLM_BASE_URL` | no | OpenAI-compatible endpoint; default Gemini |
 | `LLM_MODEL` / `LLM_FALLBACK_MODEL` | no | Default `gemini-3.5-flash-lite` / `gemini-3.5-flash` |
+| `GROQ_API_KEY` | no | Adds Groq (`GROQ_MODEL`, default `openai/gpt-oss-120b`) to the model chain: after the Gemini models by default, before offline |
+| `LLM_PRIMARY` | no | `groq` puts Groq first in the chain; any other value keeps Gemini first |
 | `TESTOPS_DATA_SOURCE` | no | `fixtures` (default without DB) or `db` |
 | `DATABASE_URL_READONLY` | for `db` | Read-only role used by the API |
 | `DATABASE_URL` + `READONLY_PASSWORD` | seed only | Privileged connection for `python -m app.seed` |

@@ -1,16 +1,53 @@
+<div align="center">
+
 # TestOps Intelligence Agent
 
-Evidence-first AI agent for **CI failure triage, flaky-test analysis and release readiness**.
-Built as a proof of concept for a fictional prospect, *Kestrel Commerce*, on **entirely synthetic data**.
+**A governed "Digital QE" for CI failure triage, flaky-test analysis and release readiness.**
+Rules decide, the model explains, and every claim links to a record.
 
-> We are not asking you to trust an AI to make release decisions.
-> **Rules decide, the model explains, and every claim links to a record.**
+[![ci](https://github.com/dangtrinh3006/testops-intelligence-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/dangtrinh3006/testops-intelligence-agent/actions/workflows/ci.yml)
+[![containers](https://github.com/dangtrinh3006/testops-intelligence-agent/actions/workflows/containers.yml/badge.svg)](https://github.com/dangtrinh3006/testops-intelligence-agent/actions/workflows/containers.yml)
+![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![LangGraph](https://img.shields.io/badge/agent-LangGraph-1C3C3C)
+![Data: synthetic](https://img.shields.io/badge/data-100%25%20synthetic-E8A33D)
 
-- Live demo: https://testops.dangtrinh.dev (API: https://testops-agent-api.vercel.app/api/health)
-- Prospect brief (one page): [PDF](docs/prospect-brief.pdf) · [Markdown](docs/prospect-brief.md) · print source [`docs/prospect-brief.html`](docs/prospect-brief.html) (rendered with WeasyPrint)
-- Architecture and design decisions: [`docs/technical-deep-dive.md`](docs/technical-deep-dive.md); in the console: [`/architecture`](https://testops.dangtrinh.dev/architecture) (system diagram, data lineage, agent loop, modes, safety, MVP → production)
+[**Live demo**](https://testops.dangtrinh.dev) · [API health](https://testops-agent-api.vercel.app/api/health) · [Architecture](https://testops.dangtrinh.dev/architecture) · [Pilot plan](https://testops.dangtrinh.dev/pilot) · [One-page brief (PDF)](docs/prospect-brief.pdf)
+
+<img src="docs/media/hero-scenario-c.gif" alt="Asking the agent whether payments-api 2.14.0 can ship: the run streams live, the policy holds the release under rule R5, and the answer cites every record" width="900">
+
+</div>
+
+> Proof of concept for a fictional prospect, *Kestrel Commerce*, on **entirely synthetic data**. Independent work; no employer code, data or branding.
+
+## Tour in four clips
+
+| | |
+|---|---|
+| <img src="docs/media/evidence-conflict.gif" alt="Source conflict view and the evidence inspector" width="440"> | **Evidence, not vibes.** The CI summary says PASS; the test runner shows a failed attempt and one that never reported. The source-of-truth view puts them side by side, and every id opens the raw record with its original timestamp format. |
+| <img src="docs/media/trace-waterfall.gif" alt="Agent run log and waterfall" width="440"> | **Watch the agent work.** Server-sent LangGraph node updates: the model plans, eight bounded read-only tools fetch, a deterministic validator checks every id, number and verdict before you see the answer. |
+| <img src="docs/media/history-architecture.gif" alt="Test history heatmap and the request lifecycle failure path" width="440"> | **Thirty days at a glance, and how it degrades.** Every heatmap cell is rebuilt from raw attempts. The request lifecycle replays each hop, including the failure path when the model drops out. |
+| <img src="docs/media/fleet-control-plane.gif" alt="Agent fleet control plane with a paused connector" width="440"> | **Installable per enterprise.** An outbound-only connector runs inside the customer network; the control plane shows heartbeat, version drift and policy, and a human can pause it. Every action is audited. *Connectors shown are a labelled sandbox simulation.* |
+
+## Beyond release review
+
+| Workflow | Page | What it gives the team |
+|---|---|---|
+| Release manager | [Overview](https://testops.dangtrinh.dev) | Gate verdict per release candidate, with the deciding rule and the record behind it |
+| Developer (shift-left) | [`/dev`](https://testops.dangtrinh.dev/dev) | "Did my commit break it?": each failure attributed to the change, known flakiness or infrastructure; PR-check text and a CLI gate (`exit 0/1/2/3`) |
+| QE | [`/triage`](https://testops.dangtrinh.dev/triage) | Inbox of failed or retried tests with ReportPortal defect types and a suggested action; accept or override, recorded in the audit log |
+| Quality lead | [`/flaky`](https://testops.dangtrinh.dev/flaky), [`/history`](https://testops.dangtrinh.dev/history) | Flake levels graded by evidence (proven / suspected / infra_only), flip rate, test × run heatmap |
+| Platform / FDE | [`/fleet`](https://testops.dangtrinh.dev/fleet), [`/settings`](https://testops.dangtrinh.dev/settings) | Outbound-only connectors, kill switches, model chain and integrations with honest runtime status |
+| Governance | [`/audit`](https://testops.dangtrinh.dev/audit), [`/rules`](https://testops.dangtrinh.dev/rules), [`/evals`](https://testops.dangtrinh.dev/evals) | Every answer and human decision logged; versioned rule file; agent evaluated with pass^k like any release-critical component |
+| IDE / agents | MCP server | The same read-only tools over stdio for Claude Code or Cursor |
+
+## Documents
+
+- Architecture and design decisions: [`docs/technical-deep-dive.md`](docs/technical-deep-dive.md); in the console: [`/architecture`](https://testops.dangtrinh.dev/architecture) (system diagram, data lineage, agent loop, modes, safety, MVP → production, multi-workspace model)
 - Pilot proposal: [`docs/business-case.md`](docs/business-case.md); in the console: [`/pilot`](https://testops.dangtrinh.dev/pilot) (four-week plan, success criteria, ROI calculator, cost drivers, risks, exit criteria)
+- Prospect brief (one page): [PDF](docs/prospect-brief.pdf) · [Markdown](docs/prospect-brief.md) · print source [`docs/prospect-brief.html`](docs/prospect-brief.html)
 - Containers, CI/CD and GitOps path (Docker images, compose, GHCR + Trivy, kustomize, ArgoCD): [`deploy/README.md`](deploy/README.md)
+- User guide in the product: [`/docs`](https://testops.dangtrinh.dev/docs) · release notes: [`/changelog`](https://testops.dangtrinh.dev/changelog)
 
 ## What it answers
 
